@@ -16,6 +16,9 @@ A `KEY=# Command` default is generated on the first sync:
 | `Uuid` | random UUID (version 4) |
 | `Cmd <command>` | output of `<command>`, run with `sh -c` (`cmd /C` on Windows); it must print a single line |
 
+A value whose first word after `#` is one of these names is always run as that command (`# Cmd is optional` runs
+`is optional`). Any other value, even one starting with `#` (a comment, `#fff`), is copied as is.
+
 `Cmd` runs whatever `.env.example` says: sync only templates you trust.
 
 `.env` is replaced atomically; on Unix it ends up readable only by its owner (`0600`).
