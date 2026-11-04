@@ -5,15 +5,8 @@
 min_version = "2026.10.9"
 
 [tools]
-# Esempi: versioni sempre fissate, così locale e CI usano le stesse.
-# rust = { version = "1.99.1", components = "rustfmt,clippy" }
-# uv = "0.10.12"
-# node = "24.11.0"
-# "github:Berack96/env-sync" = "0.1.0"
-
-# [env]
-# Carica .env nell'ambiente dei comandi di mise; con env-sync viene allineato a .env.example da `setup`.
-# _.file = ".env"
+# Componenti espliciti: mise installa il profilo minimal, senza rustfmt e clippy.
+rust = { version = "1.99.1", components = "rustfmt,clippy" }
 
 
 # ==============================================
@@ -22,22 +15,21 @@ min_version = "2026.10.9"
 
 [tasks.setup]
 description = "Configura git per il progetto (regole e hooks di .gitconfig)"
+run = "git config --local include.path ../.gitconfig"
+
+[tasks.lint]
+description = "Formatta il codice Rust e lo controlla con clippy"
 run = [
-    "git config --local include.path ../.gitconfig",
-    # "env-sync",
-    "echo '✅ Setup completato. Aggiungi qui i passi di setup del progetto (dipendenze, .env, ...).'",
+    "cargo fmt --all",
+    "cargo clippy --all-targets --all-features -- -D warnings",
 ]
 
-# I task qui sotto sono segnaposto: li usano l'hook pre-commit e la CI (.github/workflows/pr.yml).
-[tasks.lint]
-description = "Formatta il codice e lo controlla con i linter"
-run = "echo 'Nessun linter configurato: modifica il task lint in .mise.toml'"
-
 [tasks."lint:check"]
-description = "Verifica che il codice sia formattato, senza modificare i file (usato dall'hook pre-commit)"
+description = "Verifica che il codice Rust sia formattato, senza modificare i file (usato dall'hook pre-commit)"
 hide = true
-run = "echo 'Nessun controllo di formato configurato: modifica il task lint:check in .mise.toml'"
+run = "cargo fmt --all -- --check"
 
 [tasks.test]
 description = "Esegue i test"
-run = "echo 'Nessun test configurato: modifica il task test in .mise.toml'"
+run = "cargo test --all-features"
+
