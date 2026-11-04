@@ -1,4 +1,4 @@
-# Lint, test e controlli di sicurezza delle PR.
+# Lint, tests and security checks for PRs.
 name: PR
 
 on:
@@ -20,7 +20,7 @@ jobs:
     uses: Berack96/workflows/.github/workflows/test.yml@v0.4.0
     with:
       mise: true
-      # `lint` riformatta senza fallire: prima il controllo del formato.
+      # `lint` reformats without failing: check the format first.
       run: |
         mise run lint:check
         mise run lint

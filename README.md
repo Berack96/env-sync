@@ -1,19 +1,19 @@
 # env-sync
 
-Sincronizza `.env` con `.env.example`, nella cartella corrente:
+Syncs `.env` with `.env.example`, in the current folder:
 
-- ordine, commenti e righe vuote vengono dal modello;
-- i valori già impostati in `.env` restano;
-- le chiavi mancanti prendono il default del modello;
-- le chiavi non più nel modello finiscono in fondo, sotto un avviso.
+- order, comments and blank lines come from the template;
+- values already set in `.env` are kept;
+- missing keys get the template's default;
+- keys no longer in the template end up at the bottom, under a warning.
 
-Un default `CHIAVE=# Comando` viene generato al primo sync:
+A `KEY=# Command` default is generated on the first sync:
 
-| Comando | Valore |
+| Command | Value |
 | --- | --- |
-| `RandomHex` | 32 byte casuali in esadecimale (per segreti locali) |
+| `RandomHex` | 32 random bytes in hex (for local secrets) |
 
-## Uso con mise
+## Usage with mise
 
 ```toml
 [tools]
@@ -29,7 +29,7 @@ run = [
 ]
 ```
 
-## Sviluppo
+## Development
 
 ```bash
 mise install && mise run setup
@@ -37,5 +37,5 @@ mise run lint
 mise run test
 ```
 
-Ogni push su `main` crea una pre-release con i binari (Linux x64/arm64, macOS arm64, Windows x64); `Production`, a
-mano, la promuove a `vX.Y.Z`.
+Every push to `main` creates a pre-release with the binaries (Linux x64/arm64, macOS arm64, Windows x64); `Production`,
+run manually, promotes it to `vX.Y.Z`.

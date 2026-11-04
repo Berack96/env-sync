@@ -2,7 +2,7 @@
 name = "env-sync"
 version = "0.1.0"
 edition = "2024"
-description = "Sincronizza .env con .env.example"
+description = "Syncs .env with .env.example"
 license = "MIT"
 publish = false
 

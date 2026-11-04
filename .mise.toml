@@ -1,35 +1,35 @@
-# Toolchain del progetto, gestita da mise-en-place (https://mise.jdx.dev).
-# Installa tutti i tools con `mise install`, poi configura il repository con `mise run setup`.
+# Project toolchain, managed by mise-en-place (https://mise.jdx.dev).
+# Install all tools with `mise install`, then configure the repository with `mise run setup`.
 
-# Versione minima di mise: è quella usata dalla CI (Berack96/workflows).
+# Minimum mise version: the one used by CI (Berack96/workflows).
 min_version = "2026.10.9"
 
 [tools]
-# Componenti espliciti: mise installa il profilo minimal, senza rustfmt e clippy.
+# Explicit components: mise installs the minimal profile, without rustfmt and clippy.
 rust = { version = "1.99.1", components = "rustfmt,clippy" }
 
 
 # ==============================================
-# Tutti i tasks di mise sono definiti qui sotto
+# All mise tasks are defined below
 # ==============================================
 
 [tasks.setup]
-description = "Configura git per il progetto (regole e hooks di .gitconfig)"
+description = "Configure git for the project (rules and hooks from .gitconfig)"
 run = "git config --local include.path ../.gitconfig"
 
 [tasks.lint]
-description = "Formatta il codice Rust e lo controlla con clippy"
+description = "Format the Rust code and check it with clippy"
 run = [
     "cargo fmt --all",
     "cargo clippy --all-targets --all-features -- -D warnings",
 ]
 
 [tasks."lint:check"]
-description = "Verifica che il codice Rust sia formattato, senza modificare i file (usato dall'hook pre-commit)"
+description = "Check that the Rust code is formatted, without modifying files (used by the pre-commit hook)"
 hide = true
 run = "cargo fmt --all -- --check"
 
 [tasks.test]
-description = "Esegue i test"
+description = "Run the tests"
 run = "cargo test --all-features"
 

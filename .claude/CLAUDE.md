@@ -2,47 +2,47 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Lingua
+## Language
 
-Codice, commenti, docstring, help della CLI, messaggi di commit e risposte all'utente sono **in italiano**. Mantieni questa convenzione in tutto quello che scrivi.
+Code, comments, docstrings, CLI help, commit messages, PR titles and descriptions, and documentation are **in English**. Keep this convention in everything you write.
 
-## Come lavorare in questo repo
+## How to work in this repo
 
-**Regola numero uno: non si tocca nulla che non sia stato chiesto.** Tutto il resto di questa sezione discende da qui.
+**Rule number one: do not touch anything that was not asked for.** Everything else in this section follows from it.
 
-- **Scope chiuso**: modifica solo i file e le righe necessari a soddisfare la richiesta. Non riscrivere codice funzionante, non rinominare, non riordinare import, non riformattare righe che non stai già modificando, non aggiungere docstring/commenti/type hint a codice che non c'entra, non "sistemare" file vicini. Se un file non serve al task, resta com'è.
-- **Commenti brevi**: se un commento serve davvero (spiega un perché non ovvio), massimo 1-2 righe. Niente blocchi di commento lunghi. Niente riferimenti a issue, PR, task o cronologia della modifica ("issue #NN", "aggiunto per...", "prima era così, ora..."): il commento descrive lo stato attuale del codice, non come ci si è arrivati — quei riferimenti marciscono appena il codice cambia ancora e appartengono al messaggio di commit o alla PR, non al codice. Niente percorsi di file nei commenti: si nomina la cosa (funzione, tipo, comando), non il file in cui sta, che si sposta.
-- **Minimo essenziale**: di quello che è stato chiesto, implementa la versione più piccola che funziona; i bug trovati per strada si segnalano a fine lavoro, non si correggono di iniziativa. Prima di dichiarare finito, fai l'autoverifica del diff con la skill `codice-minimale`.
-- **Non essere minimale su**: validazione di input ai confini di fiducia, gestione errori che previene perdita di dati, misure di sicurezza, accessibilità di base, qualunque cosa richiesta esplicitamente.
-- **Autonomia**: procedi senza chiedere conferma per le modifiche al codice; chiedi solo se due letture del task portano a lavori sostanzialmente diversi.
-- **Git**: non committare né pushare a meno che non venga chiesto esplicitamente. Il branch principale è `main` e il lavoro si fa su branch dedicati mergiati via PR. Commit e titoli delle PR seguono Conventional Commits: tipi `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `ci`; scope facoltativo.
+- **Closed scope**: change only the files and lines needed to satisfy the request. Do not rewrite working code, rename, reorder imports, reformat lines you are not already changing, add docstrings/comments/type hints to unrelated code, or "tidy up" nearby files. If a file is not needed for the task, leave it as it is.
+- **Short comments**: if a comment is really needed (it explains a non-obvious why), 1-2 lines at most. No long comment blocks. No references to issues, PRs, tasks or the history of the change ("issue #NN", "added for...", "it used to be like this, now..."): the comment describes the current state of the code, not how it got there — those references rot as soon as the code changes again and belong in the commit message or the PR, not in the code. No file paths in comments: name the thing (function, type, command), not the file it lives in, which moves.
+- **Bare minimum**: of what was asked, implement the smallest version that works; bugs found along the way are reported at the end of the work, not fixed on your own initiative. Before declaring done, self-check the diff with the `minimal-diff` skill.
+- **Do not be minimal on**: input validation at trust boundaries, error handling that prevents data loss, security measures, basic accessibility, anything explicitly requested.
+- **Autonomy**: proceed without asking for confirmation on code changes; ask only if two readings of the task lead to substantially different work.
+- **Git**: do not commit or push unless explicitly asked. The main branch is `main` and work happens on dedicated branches merged via PR. Commits and PR titles follow Conventional Commits: types `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `ci`; scope optional.
 
-### Quando viene richiesta una nuova feature
+### When a new feature is requested
 
-Quando viene chiesto esplicitamente un lavoro con commit (una feature, un fix, o altro lavoro strutturato in più passi — resta valido il vincolo del bullet **Git** sopra: solo se richiesto), il flusso — branch, checklist, PR draft, un commit per step, gestione di richieste che ampliano il lavoro, code review pre-ready, PR pronta per la review — è nella skill `pr`; per il formato dei singoli commit vedi la skill `commit`.
+When committed work is explicitly requested (a feature, a fix, or other work structured in several steps — the **Git** bullet above still applies: only if asked), the flow — branch, checklist, draft PR, one commit per step, handling requests that widen the work, pre-ready code review, PR ready for review — is in the `pr` skill; for the format of individual commits see the `commit` skill.
 
-## Documentazione del progetto
+## Project documentation
 
-Il [README.md](../README.md) nella root è la fonte di sapere generale del repository (struttura, setup, workflow), mentre le info di prodotto di ogni progetto stanno **solo** nel relativo README. Quando ti serve capire *cosa fa* un progetto o *perché*, leggi il suo README (e il codice), non questo file.
+The [README.md](../README.md) at the root is the source of general knowledge about the repository (structure, setup, workflow), while the product info of each project lives **only** in its README. When you need to understand *what* a project does or *why*, read its README (and the code), not this file.
 
-Progetti del repository:
-- **`env-sync`**: CLI Rust che sincronizza `.env` con `.env.example` nella cartella corrente.
+Projects in the repository:
+- **`env-sync`**: Rust CLI that syncs `.env` with `.env.example` in the current folder.
 
-Questo CLAUDE.md è solo una mappa operativa per orientarsi: dove stanno le cose, come si lanciano, quali vincoli rispettare.
+This CLAUDE.md is only an operational map to find your way around: where things are, how to run them, which constraints to respect.
 
-## Manutenzione di questo file
+## Maintaining this file
 
-**Di default questo file NON si tocca**: non è un changelog. Quando e come aggiornarlo (e quando invece va aggiornato il README di un progetto) è nella skill `documenti`.
+**By default this file is NOT touched**: it is not a changelog. When and how to update it (and when a project's README should be updated instead) is in the `documentation` skill.
 
-## Comandi
+## Commands
 
 ```bash
-mise run setup                    # configura git (regole e hooks di .gitconfig)
+mise run setup                    # configure git (rules and hooks from .gitconfig)
 mise run lint                     # cargo fmt + clippy
 ```
 
-**Test**: `mise run test`. Non inventare comandi di test oltre a questi.
+**Tests**: `mise run test`. Do not invent test commands beyond these.
 
-## Architettura
+## Architecture
 
-Un solo binario, tutto in `src/main.rs`, con i test in fondo al file. I binari di release li compila `staging.yml` per Linux, macOS e Windows: i nomi degli archivi (`env-sync-<os>-<arch>`) servono al backend `github:` di mise per scegliere quello giusto.
+A single binary, all in `src/main.rs`, with the tests at the bottom of the file. Release binaries are built by `staging.yml` for Linux, macOS and Windows: the archive names (`env-sync-<os>-<arch>`) let mise's `github:` backend pick the right one.

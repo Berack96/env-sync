@@ -1,35 +1,35 @@
-# Questo file serve per standardizzare le regole di git su questo progetto evitando che alcune regole globali dell'utente possano interferire con il flusso di lavoro.
-# Viene installato automaticamente da `mise run setup` e non dovrebbe essere modificato.
+# This file standardizes the git rules for this project, so that the user's global rules cannot interfere with the workflow.
+# It is installed automatically by `mise run setup` and should not be modified.
 
 
 [core]
-    # Evidenzia spazi vuoti inutili a fine riga o a fine file
+    # Highlight useless whitespace at end of line or end of file
     whitespace = trailing-space,space-before-tab
-    # Hooks del progetto (.github/hooks): pre-push blocca il push diretto su main, pre-commit blocca i commit non formattati
+    # Project hooks (.github/hooks): pre-push blocks direct pushes to main, pre-commit blocks unformatted commits
     hooksPath = .github/hooks
-    # Compatibilità con Windows: disabilita CRLF automatico, forza LF e ignora i cambi dei permessi di esecuzione
+    # Windows compatibility: disable automatic CRLF, force LF and ignore executable permission changes
     autocrlf = false
     eol = lf
     filemode = false
 
 [pull]
-    # Impedisce rebase involontari con `git pull`; con merge.ff = only il pull riesce solo se è un fast-forward.
+    # Prevent accidental rebases with `git pull`; with merge.ff = only the pull succeeds only if it is a fast-forward.
     rebase = false
 
 [push]
-    # Crea automaticamente il branch remoto associato al primo push
+    # Automatically create the associated remote branch on the first push
     autoSetupRemote = true
-    # Previene push accidentali su altri branch; spinge solo il branch corrente
+    # Prevent accidental pushes to other branches; push only the current branch
     default = current
 
 [merge]
-    # Ammette solo merge fast-forward: se non è possibile, il merge fallisce.
+    # Allow only fast-forward merges: if not possible, the merge fails.
     ff = only
 
 [fetch]
-    # Pulisce i riferimenti ai branch remoti che sono stati eliminati dal server
+    # Clean up references to remote branches deleted on the server
     prune = true
 
 [alias]
-    # Trova tutti i branch etichettati come [gone] e li cancella in un colpo solo
+    # Find all branches marked as [gone] and delete them in one go
     sweep = "!f() { case \"$(uname -s)\" in MINGW*|CYGWIN*|MSYS*) powershell -NoProfile -Command \"git fetch --prune; git branch -vv | Select-String ': gone]' | ForEach-Object { git branch -D (\\$_.ToString().Trim() -split '\\s+')[0] }\" ;; *) git fetch --prune && git branch -vv | grep ': gone]' | awk '{print $1}' | xargs -r git branch -D ;; esac }; f"

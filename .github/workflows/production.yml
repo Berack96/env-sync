@@ -1,11 +1,11 @@
-# A mano: release `vX.Y.Z` di un tag di staging, poi i tag di staging precedenti vengono cancellati.
+# Manual: release `vX.Y.Z` from a staging tag, then the previous staging tags are deleted.
 name: Production
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Tag di staging da rilasciare (vuoto per l'ultimo)
+        description: Staging tag to release (empty for the latest)
         required: false
 
 permissions: {}
