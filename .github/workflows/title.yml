@@ -12,6 +12,3 @@ jobs:
     name: Title
     if: ${{ !github.event.pull_request.draft }}
     uses: Berack96/workflows/.github/workflows/pr-title.yml@v0.4.0
-    # Scope obbligatorio: sostituisci <scope-1>|<scope-2> con quelli del progetto.
-    with:
-      pattern: '^(feat|fix|refactor|docs|test|chore|ci)\((<scope-1>|<scope-2>)\)!?: .+'

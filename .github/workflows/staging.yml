@@ -1,4 +1,4 @@
-# Push su main: tag di staging `vAAAA.MM-staging.NNN` e pre-release.
+# Push su main: tag di staging `vAAAA.MM-staging.NNN` e pre-release con i binari, che `production.yml` promuove.
 name: Staging
 
 on:
@@ -10,8 +10,50 @@ on:
 permissions: {}
 
 jobs:
+  version:
+    name: Version
+    permissions:
+      contents: write
+      pull-requests: read
+      actions: read
+    uses: Berack96/workflows/.github/workflows/release.yml@v0.4.0
+    with:
+      tag: v{YYYY}.{MM}-staging.{NNN}
+      release-tag: v{X}.{Y}.{Z}
+      dry-run: true
+
+  # Nomi degli archivi con sistema e architettura: il backend `github:` di mise sceglie da solo quello giusto.
+  build:
+    name: Build
+    needs: version
+    if: needs.version.outputs.tag != ''
+    strategy:
+      matrix:
+        include:
+          - { runner: ubuntu-latest, name: linux-x64 }
+          - { runner: ubuntu-24.04-arm, name: linux-arm64 }
+          - { runner: macos-latest, name: macos-arm64 }
+          - { runner: windows-latest, name: windows-x64 }
+    permissions:
+      contents: read
+    uses: Berack96/workflows/.github/workflows/test.yml@v0.4.0
+    with:
+      runs-on: ${{ matrix.runner }}
+      mise: true
+      run: |
+        cargo build --release
+        mkdir -p dist
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          7z a -tzip dist/env-sync-${{ matrix.name }}.zip ./target/release/env-sync.exe
+        else
+          tar -czf dist/env-sync-${{ matrix.name }}.tar.gz -C target/release env-sync
+        fi
+      artifact: build-${{ matrix.name }}
+      artifact-path: dist
+
   release:
     name: Pre-release
+    needs: [version, build]
     permissions:
       contents: write
       pull-requests: read
@@ -21,3 +63,5 @@ jobs:
       tag: v{YYYY}.{MM}-staging.{NNN}
       release-tag: v{X}.{Y}.{Z}
       github-release: prerelease
+      expect-tag: ${{ needs.version.outputs.tag }}
+      artifact: build-*

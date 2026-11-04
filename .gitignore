@@ -9,3 +9,6 @@ Thumbs.db
 # Claude Code: impostazioni personali e worktree delle sessioni
 .claude/settings.local.json
 .claude/worktrees/
+
+# Build di Cargo
+/target

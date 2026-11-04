@@ -1,0 +1,15 @@
+[package]
+name = "env-sync"
+version = "0.1.0"
+edition = "2024"
+description = "Sincronizza .env con .env.example"
+license = "MIT"
+publish = false
+
+[dependencies]
+getrandom = "0.3"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
