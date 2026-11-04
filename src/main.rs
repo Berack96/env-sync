@@ -35,19 +35,20 @@ enum CommandEnvs {
 }
 
 impl CommandEnvs {
-    fn parse(spec: &str) -> Result<Self, String> {
+    /// `None` if `spec` does not start with a known command name.
+    fn parse(spec: &str) -> Result<Option<Self>, String> {
         let (name, args) = spec.split_once(char::is_whitespace).unwrap_or((spec, ""));
         let args = args.trim();
         match (name, args.is_empty()) {
-            ("RandomHex", true) => Ok(Self::RandomHex),
-            ("RandomBase64", true) => Ok(Self::RandomBase64),
-            ("Uuid", true) => Ok(Self::Uuid),
-            ("Cmd", false) => Ok(Self::Cmd(args.to_string())),
+            ("RandomHex", true) => Ok(Some(Self::RandomHex)),
+            ("RandomBase64", true) => Ok(Some(Self::RandomBase64)),
+            ("Uuid", true) => Ok(Some(Self::Uuid)),
+            ("Cmd", false) => Ok(Some(Self::Cmd(args.to_string()))),
             ("RandomHex" | "RandomBase64" | "Uuid", false) => {
                 Err(format!("{name} takes no arguments in {EXAMPLE_FILE}"))
             }
             ("Cmd", true) => Err(format!("Cmd needs a command in {EXAMPLE_FILE}")),
-            _ => Err(format!("unknown command in {EXAMPLE_FILE}: {name}")),
+            _ => Ok(None),
         }
     }
 
@@ -131,12 +132,13 @@ fn run_shell(cmd: &str) -> Result<String, String> {
     Ok(value.to_string())
 }
 
-/// Evaluates the default: `# Command` runs the command, any other value is kept as is.
+/// Evaluates the default: `# Command` runs a known command, any other value (comments too) is kept as is.
 fn eval_default(value: &str) -> Result<String, String> {
-    match value.strip_prefix('#') {
-        Some(spec) => CommandEnvs::parse(spec.trim())?.eval(),
-        None => Ok(value.to_string()),
-    }
+    let command = match value.strip_prefix('#') {
+        Some(spec) => CommandEnvs::parse(spec.trim())?,
+        None => None,
+    };
+    command.map_or_else(|| Ok(value.to_string()), |c| c.eval())
 }
 
 /// Content of the new `.env`, from the template and the current `.env` (empty if missing).
@@ -225,8 +227,9 @@ mod tests {
     }
 
     #[test]
-    fn unknown_command() {
-        assert!(sync("S=# Nope\n", "").is_err());
+    fn other_hash_values_kept() {
+        let example = "S=# Nope\nC=#fff\nP=# the server port\n";
+        assert_eq!(sync(example, "").unwrap(), example);
     }
 
     #[test]
