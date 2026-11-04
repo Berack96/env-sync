@@ -65,11 +65,11 @@ fn missing_template_fails_without_creating_env() {
 }
 
 #[test]
-fn unknown_command_leaves_env_untouched() {
-    let dir = workdir("unknown", Some("S=# Nope\n"), Some("A=1\n"));
+fn failing_command_leaves_env_untouched() {
+    let dir = workdir("failing", Some("S=# Cmd exit 1\n"), Some("A=1\n"));
     let out = run(&dir, &[]);
     assert!(!out.status.success());
-    assert!(String::from_utf8_lossy(&out.stderr).contains("Nope"));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("exit 1"));
     assert_eq!(read_env(&dir), "A=1\n");
 }
 
