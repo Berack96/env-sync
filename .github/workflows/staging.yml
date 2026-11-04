@@ -41,7 +41,7 @@ jobs:
       runs-on: ${{ matrix.runner }}
       mise: true
       # Tests run on the release build of every platform: a failure stops the pre-release. Same flags
-      # as the `test` mise task, plus `--release` so nothing is compiled twice.
+      # as the `test` mise task, plus `--release` to reuse the binary just built.
       run: |
         cargo build --release
         cargo test --all-features --release
