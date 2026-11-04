@@ -21,7 +21,9 @@ A value whose first word after `#` is one of these names is always run as that c
 
 `Cmd` runs whatever `.env.example` says: sync only templates you trust.
 
-`.env` is replaced atomically; on Unix it ends up readable only by its owner (`0600`).
+`.env` is replaced atomically, by renaming a new file over it (a symlinked `.env` stays a link): on Unix it ends up
+readable only by its owner (`0600`) and owned by whoever ran `env-sync`, and hard links to it are broken. A `.env`
+that cannot be read (permissions, invalid UTF-8) stops the sync and is left untouched.
 
 ## Example
 

@@ -202,12 +202,19 @@ fn main() -> Result<(), String> {
 /// Writes a temporary file and renames it over `.env` (or the file it links to), so a failed write
 /// never leaves it half written. On Unix the file is readable only by its owner.
 fn write_env(content: &str) -> std::io::Result<()> {
+    // A dangling symlink is NotFound too: it must fail, not be replaced by a regular file.
     let target = match fs::canonicalize(ENV_FILE) {
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => ENV_FILE.into(),
+        Err(e) if fs::symlink_metadata(ENV_FILE).is_err() => {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                ENV_FILE.into()
+            } else {
+                return Err(e);
+            }
+        }
         r => r?,
     };
     let mut tmp = target.clone().into_os_string();
-    tmp.push(".tmp");
+    tmp.push(".env-sync.tmp");
     let _ = fs::remove_file(&tmp);
     let mut options = fs::OpenOptions::new();
     options.write(true).create_new(true);

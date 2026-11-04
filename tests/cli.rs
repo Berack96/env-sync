@@ -91,9 +91,11 @@ fn unreadable_env_is_not_overwritten() {
 #[test]
 fn leaves_no_temporary_file() {
     let dir = workdir("tmp", Some("A=1\n"), None);
-    fs::write(dir.join(".env.tmp"), "stale").unwrap();
+    fs::write(dir.join(".env.env-sync.tmp"), "stale").unwrap();
+    fs::write(dir.join(".env.tmp"), "mine").unwrap();
     assert!(run(&dir, &[]).status.success());
-    assert!(!dir.join(".env.tmp").exists());
+    assert!(!dir.join(".env.env-sync.tmp").exists());
+    assert_eq!(fs::read_to_string(dir.join(".env.tmp")).unwrap(), "mine");
 }
 
 #[cfg(unix)]
@@ -122,4 +124,13 @@ fn unknown_hash_value_is_copied() {
     let dir = workdir("hash", Some("P=# the port\n"), None);
     assert!(run(&dir, &[]).status.success());
     assert_eq!(read_env(&dir), "P=# the port\n");
+}
+
+#[cfg(unix)]
+#[test]
+fn dangling_symlink_fails() {
+    let dir = workdir("dangling", Some("A=1\n"), None);
+    std::os::unix::fs::symlink("missing.env", dir.join(".env")).unwrap();
+    assert!(!run(&dir, &[]).status.success());
+    assert!(fs::symlink_metadata(dir.join(".env")).unwrap().is_symlink());
 }
