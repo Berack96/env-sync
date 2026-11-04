@@ -1,0 +1,40 @@
+{
+  "extraKnownMarketplaces": {
+    "ponytail": {
+      "source": {
+        "source": "github",
+        "repo": "DietrichGebert/ponytail"
+      }
+    },
+    "caveman": {
+      "source": {
+        "source": "github",
+        "repo": "JuliusBrussee/caveman"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "caveman@caveman": true,
+    "ponytail@ponytail": true
+  },
+  "permissions": {
+    "deny": [
+      "Read(.env)",
+      "Read(**/.env)",
+      "Read(~/.aws/**)",
+      "Read(~/.ssh/**)",
+      "Read(./.git/**)",
+      "Read(**/.DS_Store)",
+      "Read(**/Thumbs.db)",
+      "Read(**/*:Zone.Identifier)",
+      "Read(**/.venv/**)",
+      "Read(**/__pycache__/**)",
+      "Read(**/*.egg-info/**)",
+      "Read(**/.ruff_cache/**)",
+      "Read(**/.pytest_cache/**)",
+      "Read(**/node_modules/**)",
+      "Read(**/dist/**)",
+      "Read(**/target/**)"
+    ]
+  }
+}

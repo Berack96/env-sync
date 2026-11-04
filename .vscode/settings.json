@@ -1,0 +1,33 @@
+{
+    "diffEditor.ignoreTrimWhitespace": false,
+    "files.autoSave": "onFocusChange",
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "files.exclude": {
+        "**/.git": true,
+        "**/.DS_Store": true,
+        "**/Thumbs.db": true,
+        "**/*:Zone.Identifier": true,
+        "*.lock": true
+    },
+    "editor.formatOnSave": true,
+    "editor.detectIndentation": true,
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+    "[json]": {
+        "editor.defaultFormatter": "vscode.json-language-features"
+    },
+    "[jsonc]": {
+        "editor.defaultFormatter": "vscode.json-language-features"
+    },
+    "[toml]": {
+        "editor.defaultFormatter": "tamasfe.even-better-toml"
+    },
+    "[markdown]": {
+        "editor.defaultFormatter": "vscode.markdown-language-features",
+        "editor.wordWrap": "on"
+    },
+    "evenBetterToml.formatter.compactArrays": false,
+    "evenBetterToml.formatter.arrayAutoExpand": true,
+    "terminal.integrated.copyOnSelection": true
+}

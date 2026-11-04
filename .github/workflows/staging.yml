@@ -1,0 +1,23 @@
+# Push su main: tag di staging `vAAAA.MM-staging.NNN` e pre-release.
+name: Staging
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+
+permissions: {}
+
+jobs:
+  release:
+    name: Pre-release
+    permissions:
+      contents: write
+      pull-requests: read
+      actions: read
+    uses: Berack96/workflows/.github/workflows/release.yml@v0.4.0
+    with:
+      tag: v{YYYY}.{MM}-staging.{NNN}
+      release-tag: v{X}.{Y}.{Z}
+      github-release: prerelease

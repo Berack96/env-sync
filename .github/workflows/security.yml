@@ -1,0 +1,31 @@
+# Ogni lunedì su main, per le CVE uscite dopo il merge, e a mano. Non sulle PR: lì `fix` comparirebbe fra i check come
+# saltato.
+name: Security weekly
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: security-weekly-${{ github.ref }}
+
+jobs:
+  security:
+    name: Security
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: Berack96/workflows/.github/workflows/security.yml@v0.4.0
+
+  # Solo su main: PR draft con l'aggiornamento dei pacchetti vulnerabili, o con il resoconto del fallimento.
+  fix:
+    name: Fix
+    needs: security
+    if: failure() && github.ref_name == github.event.repository.default_branch
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: Berack96/workflows/.github/workflows/security-fix.yml@v0.4.0

@@ -1,0 +1,35 @@
+# Lint, test e controlli di sicurezza delle PR.
+name: PR
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions: {}
+
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test
+    if: ${{ !github.event.pull_request.draft }}
+    permissions:
+      contents: read
+    uses: Berack96/workflows/.github/workflows/test.yml@v0.4.0
+    with:
+      mise: true
+      # `lint` riformatta senza fallire: prima il controllo del formato.
+      run: |
+        mise run lint:check
+        mise run lint
+        mise run test
+
+  security:
+    name: Security
+    if: ${{ !github.event.pull_request.draft }}
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: Berack96/workflows/.github/workflows/security.yml@v0.4.0

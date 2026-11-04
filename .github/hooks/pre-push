@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Blocca il push diretto su main: GitHub non applica la protezione dei branch
+# sulle repo private senza un piano a pagamento.
+
+while read local_ref local_sha remote_ref remote_sha
+do
+  if [[ "$remote_ref" == *"refs/heads/main" ]]; then
+    echo "🛑 ERRORE: Push diretto su 'main' bloccato dall'hook locale."
+    exit 1
+  fi
+done
+exit 0

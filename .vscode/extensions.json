@@ -1,0 +1,10 @@
+{
+    "recommendations": [
+        "editorconfig.editorconfig",
+        "tamasfe.even-better-toml",
+        "hverlin.mise-vscode",
+        "github.vscode-github-actions",
+        "github.vscode-pull-request-github",
+        "anthropic.claude-code"
+    ]
+}

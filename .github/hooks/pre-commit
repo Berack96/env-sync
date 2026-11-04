@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# Blocca il commit se il codice non è formattato correttamente.
+if ! mise run lint:check; then
+  echo "🛑 ERRORE: commit bloccato da 'mise run lint:check' (formattazione non corretta, o mise non disponibile). Esegui 'mise run lint' e riprova."
+  exit 1
+fi
+exit 0

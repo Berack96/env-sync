@@ -1,0 +1,53 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "mise",
+            "type": "shell",
+            "command": "export PATH=\"$HOME/.local/bin:$PATH\" && if ! command -v mise &> /dev/null; then curl https://mise.run/bash | sh; else echo 'mise è già installato'; fi",
+            "windows": {
+                "command": "if (!(Get-Command mise -ErrorAction SilentlyContinue)) { winget install jdx.mise }"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "showReuseMessage": false
+            }
+        },
+        {
+            "label": "install",
+            "dependsOn": "mise",
+            "type": "shell",
+            "command": "export PATH=\"$HOME/.local/bin:$PATH\" && mise trust && mise install",
+            "windows": {
+                "command": "mise trust ; if ($?) { mise install }"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "showReuseMessage": false
+            }
+        },
+        {
+            "label": "setup",
+            "dependsOn": "install",
+            "type": "shell",
+            "command": "export PATH=\"$HOME/.local/bin:$PATH\" && mise run setup",
+            "windows": {
+                "command": "mise run setup"
+            },
+            "runOptions": {
+                "runOn": "folderOpen"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "showReuseMessage": false,
+                "close": true
+            }
+        }
+    ]
+}

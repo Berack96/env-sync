@@ -1,0 +1,26 @@
+# A mano: release `vX.Y.Z` di un tag di staging, poi i tag di staging precedenti vengono cancellati.
+name: Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag di staging da rilasciare (vuoto per l'ultimo)
+        required: false
+
+permissions: {}
+
+jobs:
+  release:
+    name: Release
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+      pull-requests: read
+      actions: read
+    uses: Berack96/workflows/.github/workflows/release.yml@v0.4.0
+    with:
+      from: v{YYYY}.{MM}-staging.{NNN}
+      from-tag: ${{ inputs.tag }}
+      from-workflow: staging.yml
+      prune: true

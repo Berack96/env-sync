@@ -1,0 +1,11 @@
+# Variabili d'ambiente locali (il modello versionato è .env.example)
+.env
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+*:Zone.Identifier
+
+# Claude Code: impostazioni personali e worktree delle sessioni
+.claude/settings.local.json
+.claude/worktrees/
