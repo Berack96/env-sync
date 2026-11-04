@@ -36,16 +36,16 @@ enum CommandEnvs {
 
 impl CommandEnvs {
     fn parse(spec: &str) -> Result<Self, String> {
-        let (name, args) = spec.split_once(' ').unwrap_or((spec, ""));
+        let (name, args) = spec.split_once(char::is_whitespace).unwrap_or((spec, ""));
         let args = args.trim();
         match (name, args.is_empty()) {
             ("RandomHex", true) => Ok(Self::RandomHex),
             ("RandomBase64", true) => Ok(Self::RandomBase64),
             ("Uuid", true) => Ok(Self::Uuid),
             ("Cmd", false) => Ok(Self::Cmd(args.to_string())),
-            ("RandomHex" | "RandomBase64" | "Uuid", false) => Err(format!(
-                "{name} takes no arguments in {EXAMPLE_FILE}: {spec}"
-            )),
+            ("RandomHex" | "RandomBase64" | "Uuid", false) => {
+                Err(format!("{name} takes no arguments in {EXAMPLE_FILE}"))
+            }
             ("Cmd", true) => Err(format!("Cmd needs a command in {EXAMPLE_FILE}")),
             _ => Err(format!("unknown command in {EXAMPLE_FILE}: {name}")),
         }
@@ -53,16 +53,13 @@ impl CommandEnvs {
 
     fn eval(&self) -> Result<String, String> {
         match self {
-            Self::RandomHex => Ok(random_bytes::<32>()
-                .iter()
-                .map(|b| format!("{b:02x}"))
-                .collect()),
+            Self::RandomHex => Ok(hex(&random_bytes::<32>())),
             Self::RandomBase64 => Ok(base64(&random_bytes::<32>())),
             Self::Uuid => {
                 let mut b = random_bytes::<16>();
                 b[6] = (b[6] & 0x0f) | 0x40;
                 b[8] = (b[8] & 0x3f) | 0x80;
-                let hex: String = b.iter().map(|b| format!("{b:02x}")).collect();
+                let hex = hex(&b);
                 Ok(format!(
                     "{}-{}-{}-{}-{}",
                     &hex[..8],
@@ -81,6 +78,10 @@ fn random_bytes<const N: usize>() -> [u8; N] {
     let mut bytes = [0u8; N];
     getrandom::fill(&mut bytes).expect("system random generator not available");
     bytes
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 /// Standard base64, with padding.
@@ -107,8 +108,14 @@ fn run_shell(cmd: &str) -> Result<String, String> {
     } else {
         ("sh", "-c")
     };
-    let out = std::process::Command::new(shell)
-        .args([flag, cmd])
+    let mut command = std::process::Command::new(shell);
+    command.arg(flag);
+    // `cmd /C` does not follow the quoting rules `arg` applies on Windows.
+    #[cfg(windows)]
+    std::os::windows::process::CommandExt::raw_arg(&mut command, cmd);
+    #[cfg(not(windows))]
+    command.arg(cmd);
+    let out = command
         .stderr(std::process::Stdio::inherit())
         .output()
         .map_err(|e| format!("failed to run `{cmd}`: {e}"))?;
@@ -147,7 +154,10 @@ fn sync(example: &str, current: &str) -> Result<String, String> {
             .find(|l| parse_assignment(l).is_some_and(|(k, _)| k == key));
         out.push(match existing {
             Some(l) => l.to_string(),
-            None => format!("{key}={}", eval_default(default)?),
+            None => format!(
+                "{key}={}",
+                eval_default(default).map_err(|e| format!("{key}: {e}"))?
+            ),
         });
     }
 
