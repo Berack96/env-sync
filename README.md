@@ -12,6 +12,11 @@ A `KEY=# Command` default is generated on the first sync:
 | Command | Value |
 | --- | --- |
 | `RandomHex` | 32 random bytes in hex (for local secrets) |
+| `RandomBase64` | 32 random bytes in base64 |
+| `Uuid` | random UUID (version 4) |
+| `Cmd <command>` | output of `<command>`, run with `sh -c` (`cmd /C` on Windows); it must print a single line |
+
+`Cmd` runs whatever `.env.example` says: sync only templates you trust.
 
 ## Usage with mise
 
