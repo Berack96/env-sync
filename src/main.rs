@@ -95,7 +95,7 @@ fn sync(example: &str, current: &str) -> Result<String, String> {
 fn main() -> Result<(), String> {
     if std::env::args().len() > 1 {
         return Err(format!(
-            "no arguments: syncs {ENV_FILE} with {EXAMPLE_FILE} in the current folder"
+            "takes no arguments: syncs {ENV_FILE} with {EXAMPLE_FILE} in the current folder"
         ));
     }
     let example = fs::read_to_string(EXAMPLE_FILE)
