@@ -6,7 +6,7 @@ use std::process::{Command, Output};
 
 /// Fresh, empty folder for one test, with the given `.env.example` and `.env` (if any).
 fn workdir(name: &str, example: Option<&str>, env: Option<&str>) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("env-sync-{}-{name}", std::process::id()));
+    let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
     if let Some(example) = example {
@@ -67,7 +67,9 @@ fn missing_template_fails_without_creating_env() {
 #[test]
 fn unknown_command_leaves_env_untouched() {
     let dir = workdir("unknown", Some("S=# Nope\n"), Some("A=1\n"));
-    assert!(!run(&dir, &[]).status.success());
+    let out = run(&dir, &[]);
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("Nope"));
     assert_eq!(read_env(&dir), "A=1\n");
 }
 
