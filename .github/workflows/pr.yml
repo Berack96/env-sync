@@ -7,8 +7,9 @@ on:
 
 permissions: {}
 
+# Draft in the group: a skipped draft run must not cancel the ready one.
 concurrency:
-  group: pr-${{ github.ref }}
+  group: pr-${{ github.ref }}-${{ github.event.pull_request.draft }}
   cancel-in-progress: true
 
 jobs:
