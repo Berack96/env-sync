@@ -79,3 +79,10 @@ fn rejects_arguments() {
     assert!(!run(&dir, &["extra"]).status.success());
     assert!(!dir.join(".env").exists());
 }
+
+#[test]
+fn unknown_hash_value_is_copied() {
+    let dir = workdir("hash", Some("P=# the port\n"), None);
+    assert!(run(&dir, &[]).status.success());
+    assert_eq!(read_env(&dir), "P=# the port\n");
+}
