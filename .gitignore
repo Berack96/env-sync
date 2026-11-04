@@ -1,14 +1,14 @@
-# Variabili d'ambiente locali (il modello versionato è .env.example)
+# Local environment variables (the versioned template is .env.example)
 .env
 
-# Sistema operativo
+# Operating system
 .DS_Store
 Thumbs.db
 *:Zone.Identifier
 
-# Claude Code: impostazioni personali e worktree delle sessioni
+# Claude Code: personal settings and session worktrees
 .claude/settings.local.json
 .claude/worktrees/
 
-# Build di Cargo
+# Cargo build
 /target

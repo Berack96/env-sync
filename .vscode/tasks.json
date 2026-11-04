@@ -4,7 +4,7 @@
         {
             "label": "mise",
             "type": "shell",
-            "command": "export PATH=\"$HOME/.local/bin:$PATH\" && if ! command -v mise &> /dev/null; then curl https://mise.run/bash | sh; else echo 'mise è già installato'; fi",
+            "command": "export PATH=\"$HOME/.local/bin:$PATH\" && if ! command -v mise &> /dev/null; then curl https://mise.run/bash | sh; else echo 'mise is already installed'; fi",
             "windows": {
                 "command": "if (!(Get-Command mise -ErrorAction SilentlyContinue)) { winget install jdx.mise }"
             },

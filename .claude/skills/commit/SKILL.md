@@ -1,12 +1,12 @@
 ---
 name: commit
-description: Fa un commit git in questo repository, messaggio incluso, quando viene chiesto esplicitamente di fare un commit.
+description: Makes a git commit in this repository, message included, when a commit is explicitly requested.
 ---
 
-Si committa solo se richiesto esplicitamente, mai di propria iniziativa. Bastano due o tre comandi: non rileggere il diff delle modifiche fatte da te in questa sessione, sai già cosa contengono.
+Commit only when explicitly asked, never on your own initiative. Two or three commands are enough: do not reread the diff of changes you made in this session, you already know what they contain.
 
-1. `git status --short` per vedere cosa c'è da committare. Leggi il diff (`git diff -- <file>`) solo dei file che non hai modificato tu; se in stage c'è già qualcosa che non hai toccato tu, segnalalo invece di committarlo.
-2. Se le modifiche da committare mescolano cose logicamente distinte, fermati e segnalalo: ogni commit corrisponde a un solo cambiamento logico.
-3. `git add <file>...` solo con i file toccati per questo task, per nome: mai `git add -A` o `git add .`. Mai aggiungere `.env` o altri file con segreti, anche se git non li ignorasse.
-4. `git commit -m "<tipo>: <oggetto>"`: messaggio in **italiano**, sul modello Conventional Commits, minuscolo, imperativo, senza punto finale. Un corpo (secondo `-m`) solo se serve spiegare il *perché* di una scelta non ovvia dal diff, mai il *cosa*.
-5. Non menzionare la conversazione, il task o un assistente AI nel messaggio: descrive il codice, non il contesto in cui è stato scritto. Fa eccezione il footer di attribuzione, se la piattaforma lo richiede.
+1. `git status --short` to see what there is to commit. Read the diff (`git diff -- <file>`) only of files you did not change yourself; if something you did not touch is already staged, report it instead of committing it.
+2. If the changes to commit mix logically distinct things, stop and report it: each commit corresponds to a single logical change.
+3. `git add <file>...` only with the files touched for this task, by name: never `git add -A` or `git add .`. Never add `.env` or other files with secrets, even if git did not ignore them.
+4. `git commit -m "<type>: <subject>"`: message in **English**, following Conventional Commits, lowercase, imperative, no trailing period. A body (second `-m`) only if it is needed to explain the *why* of a choice that is not obvious from the diff, never the *what*.
+5. Do not mention the conversation, the task or an AI assistant in the message: it describes the code, not the context it was written in. The exception is the attribution footer, if the platform requires it.

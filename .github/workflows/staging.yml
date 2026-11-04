@@ -1,4 +1,4 @@
-# Push su main: tag di staging `vAAAA.MM-staging.NNN` e pre-release con i binari, che `production.yml` promuove.
+# Push to main: staging tag `vYYYY.MM-staging.NNN` and pre-release with the binaries, which `production.yml` promotes.
 name: Staging
 
 on:
@@ -22,7 +22,7 @@ jobs:
       release-tag: v{X}.{Y}.{Z}
       dry-run: true
 
-  # Nomi degli archivi con sistema e architettura: il backend `github:` di mise sceglie da solo quello giusto.
+  # Archive names with OS and architecture: mise's `github:` backend picks the right one by itself.
   build:
     name: Build
     needs: version

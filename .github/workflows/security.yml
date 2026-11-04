@@ -1,5 +1,5 @@
-# Ogni lunedì su main, per le CVE uscite dopo il merge, e a mano. Non sulle PR: lì `fix` comparirebbe fra i check come
-# saltato.
+# Every Monday on main, for CVEs published after the merge, and manually. Not on PRs: there `fix` would show up among the
+# checks as skipped.
 name: Security weekly
 
 on:
@@ -20,7 +20,7 @@ jobs:
       pull-requests: write
     uses: Berack96/workflows/.github/workflows/security.yml@v0.4.0
 
-  # Solo su main: PR draft con l'aggiornamento dei pacchetti vulnerabili, o con il resoconto del fallimento.
+  # Only on main: draft PR with the update of the vulnerable packages, or with the failure report.
   fix:
     name: Fix
     needs: security

@@ -1,4 +1,4 @@
-# Titolo delle PR: diventa il commit dello squash e decide la prossima versione.
+# PR title: it becomes the squash commit and decides the next version.
 name: Title
 
 on:
