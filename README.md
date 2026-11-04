@@ -62,7 +62,7 @@ OLD_FLAG=1
 ```text
 -e, --env <file>       env file to sync, read and rewritten [default: .env]
 -t, --template <file>  template to sync from [default: .env.example]
--h, --help             print the help
+-h, --help             print this help
 ```
 
 One template can feed several env files, or each can have its own:

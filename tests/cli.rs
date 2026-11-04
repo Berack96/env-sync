@@ -147,6 +147,7 @@ fn custom_env_and_template() {
     );
     let env = fs::read_to_string(dir.join(".env.prod")).unwrap();
     assert!(env.starts_with("A=1\n"));
+    assert!(env.contains("are in your .env.prod"));
     assert!(env.contains("no longer tracked in prod.example"));
     assert!(!dir.join(".env").exists());
 }

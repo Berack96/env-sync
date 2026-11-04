@@ -153,8 +153,9 @@ fn eval_default(value: &str) -> Result<String, String> {
     command.map_or_else(|| Ok(value.to_string()), |c| c.eval())
 }
 
-/// Content of the new env file, from the template (named `template`) and the current env file (empty if missing).
-fn sync(example: &str, current: &str, template: &str) -> Result<String, String> {
+/// Content of the new env file (named `env`), from the template (named `template`) and the
+/// current env file (empty if missing).
+fn sync(example: &str, current: &str, env: &str, template: &str) -> Result<String, String> {
     let mut out: Vec<String> = Vec::new();
     let mut known = HashSet::new();
     for line in example.lines() {
@@ -183,7 +184,7 @@ fn sync(example: &str, current: &str, template: &str) -> Result<String, String> 
         out.push(String::new());
         out.push("# ===================================================".to_string());
         out.push("# ⚠️  DEPRECATED OR LOCAL VARIABLES".to_string());
-        out.push("# The following variables are in your .env".to_string());
+        out.push(format!("# The following variables are in your {env}"));
         out.push(format!("# but are no longer tracked in {template}"));
         out.push("# ===================================================".to_string());
         out.extend(deprecated.iter().map(|l| l.to_string()));
@@ -206,6 +207,7 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Option<(String, 
         };
         *slot = args
             .next()
+            .filter(|v| !v.starts_with('-'))
             .ok_or_else(|| format!("{arg} needs a file\n\n{USAGE}"))?;
     }
     Ok(Some((env, template)))
@@ -225,14 +227,16 @@ fn run() -> Result<(), String> {
     };
     let example =
         fs::read_to_string(&template).map_err(|e| format!("failed to read {template}: {e}"))?;
-    if fs::canonicalize(&env).ok() == fs::canonicalize(&template).ok() {
+    if fs::canonicalize(&env).ok() == Some(fs::canonicalize(&template).map_err(|e| e.to_string())?)
+    {
         return Err(format!("{env} is the template itself"));
     }
     let current = match fs::read_to_string(&env) {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
         r => r.map_err(|e| format!("failed to read {env}: {e}"))?,
     };
-    let content = sync(&example, &current, &template).map_err(|e| format!("{template}: {e}"))?;
+    let content =
+        sync(&example, &current, &env, &template).map_err(|e| format!("{template}: {e}"))?;
     write_env(&env, &content).map_err(|e| format!("failed to write {env}: {e}"))
 }
 
@@ -272,7 +276,7 @@ mod tests {
     use super::*;
 
     fn sync(example: &str, current: &str) -> Result<String, String> {
-        super::sync(example, current, EXAMPLE_FILE)
+        super::sync(example, current, ENV_FILE, EXAMPLE_FILE)
     }
 
     fn args(list: &[&str]) -> Result<Option<(String, String)>, String> {
@@ -290,6 +294,7 @@ mod tests {
         assert_eq!(args(&["--template", "t", "--env", "e"]), pair("e", "t"));
         assert_eq!(args(&["--help"]), Ok(None));
         assert!(args(&["--env"]).is_err());
+        assert!(args(&["-e", "-t", "x"]).is_err());
         assert!(args(&["extra"]).is_err());
     }
 
