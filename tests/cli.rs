@@ -81,8 +81,56 @@ fn rejects_arguments() {
 }
 
 #[test]
+fn unreadable_env_is_not_overwritten() {
+    let dir = workdir("unreadable", Some("A=1\n"), None);
+    fs::write(dir.join(".env"), [0xff, 0xfe]).unwrap();
+    assert!(!run(&dir, &[]).status.success());
+    assert_eq!(fs::read(dir.join(".env")).unwrap(), [0xff, 0xfe]);
+}
+
+#[test]
+fn leaves_no_temporary_file() {
+    let dir = workdir("tmp", Some("A=1\n"), None);
+    fs::write(dir.join(".env.env-sync.tmp"), "stale").unwrap();
+    fs::write(dir.join(".env.tmp"), "mine").unwrap();
+    assert!(run(&dir, &[]).status.success());
+    assert!(!dir.join(".env.env-sync.tmp").exists());
+    assert_eq!(fs::read_to_string(dir.join(".env.tmp")).unwrap(), "mine");
+}
+
+#[cfg(unix)]
+#[test]
+fn env_is_readable_only_by_owner() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = workdir("mode", Some("A=1\n"), Some("A=2\n"));
+    assert!(run(&dir, &[]).status.success());
+    let mode = fs::metadata(dir.join(".env")).unwrap().permissions().mode();
+    assert_eq!(mode & 0o777, 0o600);
+}
+
+#[cfg(unix)]
+#[test]
+fn writes_through_a_symlinked_env() {
+    let dir = workdir("symlink", Some("A=1\n"), None);
+    fs::write(dir.join("real.env"), "A=2\n").unwrap();
+    std::os::unix::fs::symlink("real.env", dir.join(".env")).unwrap();
+    assert!(run(&dir, &[]).status.success());
+    assert!(fs::symlink_metadata(dir.join(".env")).unwrap().is_symlink());
+    assert_eq!(fs::read_to_string(dir.join("real.env")).unwrap(), "A=2\n");
+}
+
+#[test]
 fn unknown_hash_value_is_copied() {
     let dir = workdir("hash", Some("P=# the port\n"), None);
     assert!(run(&dir, &[]).status.success());
     assert_eq!(read_env(&dir), "P=# the port\n");
+}
+
+#[cfg(unix)]
+#[test]
+fn dangling_symlink_fails() {
+    let dir = workdir("dangling", Some("A=1\n"), None);
+    std::os::unix::fs::symlink("missing.env", dir.join(".env")).unwrap();
+    assert!(!run(&dir, &[]).status.success());
+    assert!(fs::symlink_metadata(dir.join(".env")).unwrap().is_symlink());
 }

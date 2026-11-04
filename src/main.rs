@@ -6,6 +6,9 @@
 
 use std::collections::HashSet;
 use std::fs;
+use std::io::Write;
+#[cfg(unix)]
+use std::os::unix::fs::OpenOptionsExt;
 
 const ENV_FILE: &str = ".env";
 const EXAMPLE_FILE: &str = ".env.example";
@@ -189,9 +192,42 @@ fn main() -> Result<(), String> {
     }
     let example = fs::read_to_string(EXAMPLE_FILE)
         .map_err(|e| format!("failed to read {EXAMPLE_FILE}: {e}"))?;
-    let current = fs::read_to_string(ENV_FILE).unwrap_or_default();
-    fs::write(ENV_FILE, sync(&example, &current)?)
-        .map_err(|e| format!("failed to write {ENV_FILE}: {e}"))
+    let current = match fs::read_to_string(ENV_FILE) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+        r => r.map_err(|e| format!("failed to read {ENV_FILE}: {e}"))?,
+    };
+    write_env(&sync(&example, &current)?).map_err(|e| format!("failed to write {ENV_FILE}: {e}"))
+}
+
+/// Writes a temporary file and renames it over `.env` (or the file it links to), so a failed write
+/// never leaves it half written. On Unix the file is readable only by its owner.
+fn write_env(content: &str) -> std::io::Result<()> {
+    // A dangling symlink is NotFound too: it must fail, not be replaced by a regular file.
+    let target = match fs::canonicalize(ENV_FILE) {
+        Err(e) if fs::symlink_metadata(ENV_FILE).is_err() => {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                ENV_FILE.into()
+            } else {
+                return Err(e);
+            }
+        }
+        r => r?,
+    };
+    let mut tmp = target.clone().into_os_string();
+    tmp.push(".env-sync.tmp");
+    let _ = fs::remove_file(&tmp);
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    options.mode(0o600);
+    let result = options
+        .open(&tmp)
+        .and_then(|mut f| f.write_all(content.as_bytes()).and_then(|_| f.sync_all()))
+        .and_then(|_| fs::rename(&tmp, &target));
+    if result.is_err() {
+        let _ = fs::remove_file(&tmp);
+    }
+    result
 }
 
 #[cfg(test)]
