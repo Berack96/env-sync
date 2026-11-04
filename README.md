@@ -18,21 +18,43 @@ A `KEY=# Command` default is generated on the first sync:
 
 `Cmd` runs whatever `.env.example` says: sync only templates you trust.
 
-## Usage with mise
+## Example
 
-```toml
-[tools]
-"github:Berack96/env-sync" = "0.1.0"
+`.env.example`:
 
-[env]
-_.file = ".env"
-
-[tasks.setup]
-run = [
-    "git config --local include.path ../.gitconfig",
-    "env-sync",
-]
+```bash
+# Database
+DB_HOST=localhost
+DB_PASSWORD=# RandomHex
 ```
+
+`.env` before:
+
+```bash
+DB_HOST=db.local
+OLD_FLAG=1
+```
+
+`env-sync`, then `.env`:
+
+```bash
+# Database
+DB_HOST=db.local
+DB_PASSWORD=3f9c...e1a7
+
+# ===================================================
+# ⚠️  DEPRECATED OR LOCAL VARIABLES
+# The following variables are in your .env
+# but are no longer tracked in .env.example
+# ===================================================
+OLD_FLAG=1
+```
+
+## Install
+
+Download and extract the archive for your platform from the
+[releases](https://github.com/Berack96/env-sync/releases) (`env-sync-<os>-<arch>.tar.gz`, `.zip` on Windows) and put
+`env-sync` on your `PATH`.
 
 ## Development
 
@@ -41,6 +63,3 @@ mise install && mise run setup
 mise run lint
 mise run test
 ```
-
-Every push to `main` creates a pre-release with the binaries (Linux x64/arm64, macOS arm64, Windows x64); `Production`,
-run manually, promotes it to `vX.Y.Z`.
