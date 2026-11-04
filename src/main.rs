@@ -215,9 +215,9 @@ fn sync(example: &str, current: &str, env: &str, template: &str) -> Result<Strin
             out.push(entry);
             continue;
         };
-        let existing = current
-            .iter()
-            .position(|e| parse_assignment(e).is_some_and(|(k, _)| k == key));
+        let existing = (0..current.len()).find(|i| {
+            !used.contains(i) && parse_assignment(&current[*i]).is_some_and(|(k, _)| k == key)
+        });
         out.push(match existing {
             Some(i) => {
                 used.insert(i);
@@ -483,6 +483,19 @@ mod tests {
             sync(example, "C=9\n").unwrap(),
             "A=1\nB=\"\nC=9\nexport D=4\n"
         );
+    }
+
+    #[test]
+    fn keeps_multiline_values_with_base64_padding() {
+        let current = "K=\"-----BEGIN\nMIIBabc=\n-----END\"\n";
+        assert_eq!(sync("K=\n", current).unwrap(), current);
+    }
+
+    #[test]
+    fn repeated_template_key_is_stable() {
+        let out = sync("A=1\nA=2\n", "A=9\n").unwrap();
+        assert_eq!(out, "A=9\nA=2\n");
+        assert_eq!(sync("A=1\nA=2\n", &out).unwrap(), out);
     }
 
     #[test]
