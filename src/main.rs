@@ -2,7 +2,7 @@
 //! preserves values already set, generates missing defaults and moves keys no longer in the
 //! template to the bottom.
 //!
-//! Usage: `env-sync`, in the folder with `.env.example`.
+//! Usage: `env-sync [--env <file>] [--template <file>]`, see [`USAGE`].
 
 use std::collections::HashSet;
 use std::fs;
@@ -12,6 +12,15 @@ use std::os::unix::fs::OpenOptionsExt;
 
 const ENV_FILE: &str = ".env";
 const EXAMPLE_FILE: &str = ".env.example";
+const USAGE: &str = "\
+Usage: env-sync [--env <file>] [--template <file>]
+
+Syncs the env file with its template, in the current folder.
+
+Options:
+  -e, --env <file>       env file to sync, read and rewritten [default: .env]
+  -t, --template <file>  template to sync from [default: .env.example]
+  -h, --help             print this help";
 
 /// If the line is a `KEY=value` assignment (spaces around the equals sign allowed) returns (key, value).
 fn parse_assignment(line: &str) -> Option<(&str, &str)> {
@@ -48,9 +57,9 @@ impl CommandEnvs {
             ("Uuid", true) => Ok(Some(Self::Uuid)),
             ("Cmd", false) => Ok(Some(Self::Cmd(args.to_string()))),
             ("RandomHex" | "RandomBase64" | "Uuid", false) => {
-                Err(format!("{name} takes no arguments in {EXAMPLE_FILE}"))
+                Err(format!("{name} takes no arguments"))
             }
-            ("Cmd", true) => Err(format!("Cmd needs a command in {EXAMPLE_FILE}")),
+            ("Cmd", true) => Err("Cmd needs a command".to_string()),
             _ => Ok(None),
         }
     }
@@ -144,8 +153,8 @@ fn eval_default(value: &str) -> Result<String, String> {
     command.map_or_else(|| Ok(value.to_string()), |c| c.eval())
 }
 
-/// Content of the new `.env`, from the template and the current `.env` (empty if missing).
-fn sync(example: &str, current: &str) -> Result<String, String> {
+/// Content of the new env file, from the template (named `template`) and the current env file (empty if missing).
+fn sync(example: &str, current: &str, template: &str) -> Result<String, String> {
     let mut out: Vec<String> = Vec::new();
     let mut known = HashSet::new();
     for line in example.lines() {
@@ -175,7 +184,7 @@ fn sync(example: &str, current: &str) -> Result<String, String> {
         out.push("# ===================================================".to_string());
         out.push("# ⚠️  DEPRECATED OR LOCAL VARIABLES".to_string());
         out.push("# The following variables are in your .env".to_string());
-        out.push(format!("# but are no longer tracked in {EXAMPLE_FILE}"));
+        out.push(format!("# but are no longer tracked in {template}"));
         out.push("# ===================================================".to_string());
         out.extend(deprecated.iter().map(|l| l.to_string()));
     }
@@ -184,29 +193,57 @@ fn sync(example: &str, current: &str) -> Result<String, String> {
     Ok(out.join("\n"))
 }
 
-fn main() -> Result<(), String> {
-    if std::env::args().len() > 1 {
-        return Err(format!(
-            "takes no arguments: syncs {ENV_FILE} with {EXAMPLE_FILE} in the current folder"
-        ));
+/// `(env, template)` from the command line, `None` if help was asked.
+fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Option<(String, String)>, String> {
+    let (mut env, mut template) = (ENV_FILE.to_string(), EXAMPLE_FILE.to_string());
+    let mut args = args.into_iter();
+    while let Some(arg) = args.next() {
+        let slot = match arg.as_str() {
+            "-e" | "--env" => &mut env,
+            "-t" | "--template" => &mut template,
+            "-h" | "--help" => return Ok(None),
+            _ => return Err(format!("unknown argument: {arg}\n\n{USAGE}")),
+        };
+        *slot = args
+            .next()
+            .ok_or_else(|| format!("{arg} needs a file\n\n{USAGE}"))?;
     }
-    let example = fs::read_to_string(EXAMPLE_FILE)
-        .map_err(|e| format!("failed to read {EXAMPLE_FILE}: {e}"))?;
-    let current = match fs::read_to_string(ENV_FILE) {
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
-        r => r.map_err(|e| format!("failed to read {ENV_FILE}: {e}"))?,
-    };
-    write_env(&sync(&example, &current)?).map_err(|e| format!("failed to write {ENV_FILE}: {e}"))
+    Ok(Some((env, template)))
 }
 
-/// Writes a temporary file and renames it over `.env` (or the file it links to), so a failed write
+fn main() {
+    if let Err(e) = run() {
+        eprintln!("error: {e}");
+        std::process::exit(1);
+    }
+}
+
+fn run() -> Result<(), String> {
+    let Some((env, template)) = parse_args(std::env::args().skip(1))? else {
+        println!("{USAGE}");
+        return Ok(());
+    };
+    let example =
+        fs::read_to_string(&template).map_err(|e| format!("failed to read {template}: {e}"))?;
+    if fs::canonicalize(&env).ok() == fs::canonicalize(&template).ok() {
+        return Err(format!("{env} is the template itself"));
+    }
+    let current = match fs::read_to_string(&env) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+        r => r.map_err(|e| format!("failed to read {env}: {e}"))?,
+    };
+    let content = sync(&example, &current, &template).map_err(|e| format!("{template}: {e}"))?;
+    write_env(&env, &content).map_err(|e| format!("failed to write {env}: {e}"))
+}
+
+/// Writes a temporary file and renames it over `env` (or the file it links to), so a failed write
 /// never leaves it half written. On Unix the file is readable only by its owner.
-fn write_env(content: &str) -> std::io::Result<()> {
+fn write_env(env: &str, content: &str) -> std::io::Result<()> {
     // A dangling symlink is NotFound too: it must fail, not be replaced by a regular file.
-    let target = match fs::canonicalize(ENV_FILE) {
-        Err(e) if fs::symlink_metadata(ENV_FILE).is_err() => {
+    let target = match fs::canonicalize(env) {
+        Err(e) if fs::symlink_metadata(env).is_err() => {
             if e.kind() == std::io::ErrorKind::NotFound {
-                ENV_FILE.into()
+                env.into()
             } else {
                 return Err(e);
             }
@@ -233,6 +270,28 @@ fn write_env(content: &str) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn sync(example: &str, current: &str) -> Result<String, String> {
+        super::sync(example, current, EXAMPLE_FILE)
+    }
+
+    fn args(list: &[&str]) -> Result<Option<(String, String)>, String> {
+        parse_args(list.iter().map(|a| a.to_string()))
+    }
+
+    #[test]
+    fn parses_arguments() {
+        let pair = |e: &str, t: &str| Ok(Some((e.to_string(), t.to_string())));
+        assert_eq!(args(&[]), pair(".env", ".env.example"));
+        assert_eq!(
+            args(&["-e", ".env.prod"]),
+            pair(".env.prod", ".env.example")
+        );
+        assert_eq!(args(&["--template", "t", "--env", "e"]), pair("e", "t"));
+        assert_eq!(args(&["--help"]), Ok(None));
+        assert!(args(&["--env"]).is_err());
+        assert!(args(&["extra"]).is_err());
+    }
 
     #[test]
     fn keeps_template_and_values() {
