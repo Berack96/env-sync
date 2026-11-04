@@ -5,7 +5,10 @@ Syncs `.env` with `.env.example`, in the current folder:
 - order, comments and blank lines come from the template;
 - values already set in `.env` are kept;
 - missing keys get the template's default;
-- keys no longer in the template end up at the bottom, under a warning.
+- every other line of `.env` (keys no longer in the template, repeated keys, your own comments) ends up at the
+  bottom, under a warning: nothing is lost.
+
+`export KEY=value` lines and quoted values spanning several lines are kept as they are.
 
 A `KEY=# Command` default is generated on the first sync:
 

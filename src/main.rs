@@ -22,8 +22,14 @@ Options:
   -t, --template <file>  template to sync from [default: .env.example]
   -h, --help             print this help";
 
-/// If the line is a `KEY=value` assignment (spaces around the equals sign allowed) returns (key, value).
+/// If the line is a `KEY=value` assignment (spaces around the equals sign and an `export` prefix
+/// allowed) returns (key, value).
 fn parse_assignment(line: &str) -> Option<(&str, &str)> {
+    let line = line.trim_start();
+    let line = line
+        .strip_prefix("export")
+        .filter(|rest| rest.starts_with(char::is_whitespace))
+        .unwrap_or(line);
     let (key, value) = line.split_once('=')?;
     let key = key.trim();
     let mut chars = key.chars();
@@ -32,6 +38,35 @@ fn parse_assignment(line: &str) -> Option<(&str, &str)> {
         .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
         && chars.all(|c| c.is_ascii_alphanumeric() || c == '_');
     valid.then_some((key, value.trim()))
+}
+
+/// Lines of `text`, with a quoted value that spans several lines joined into one entry.
+/// shortcut: escaped quotes (`\"`) are not recognized, handle them if a real file needs it.
+fn entries(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut lines = text.lines();
+    while let Some(line) = lines.next() {
+        let mut entry = line.to_string();
+        let quote = parse_assignment(line).and_then(|(_, v)| {
+            v.chars()
+                .next()
+                .filter(|q| ['"', '\''].contains(q))
+                .zip(Some(v))
+        });
+        if let Some((q, value)) = quote
+            && !value[1..].contains(q)
+        {
+            for next in lines.by_ref() {
+                entry.push('\n');
+                entry.push_str(next);
+                if next.contains(q) {
+                    break;
+                }
+            }
+        }
+        out.push(entry);
+    }
+    out
 }
 
 /// Commands that generate a key's default, written in `.env.example` as `KEY=# Command [args]`.
@@ -156,19 +191,29 @@ fn eval_default(value: &str) -> Result<String, String> {
 /// Content of the new env file (named `env`), from the template (named `template`) and the
 /// current env file (empty if missing).
 fn sync(example: &str, current: &str, env: &str, template: &str) -> Result<String, String> {
+    let header = [
+        "# ===================================================".to_string(),
+        "# ⚠️  DEPRECATED OR LOCAL VARIABLES".to_string(),
+        format!("# The following variables are in your {env}"),
+        format!("# but are no longer tracked in {template}"),
+        "# ===================================================".to_string(),
+    ];
+    let current = entries(current);
+    let mut used = HashSet::new();
     let mut out: Vec<String> = Vec::new();
-    let mut known = HashSet::new();
-    for line in example.lines() {
-        let Some((key, default)) = parse_assignment(line) else {
-            out.push(line.to_string());
+    for entry in entries(example) {
+        let Some((key, default)) = parse_assignment(&entry) else {
+            out.push(entry);
             continue;
         };
-        known.insert(key);
         let existing = current
-            .lines()
-            .find(|l| parse_assignment(l).is_some_and(|(k, _)| k == key));
+            .iter()
+            .position(|e| parse_assignment(e).is_some_and(|(k, _)| k == key));
         out.push(match existing {
-            Some(l) => l.to_string(),
+            Some(i) => {
+                used.insert(i);
+                current[i].clone()
+            }
             None => format!(
                 "{key}={}",
                 eval_default(default).map_err(|e| format!("{key}: {e}"))?
@@ -176,18 +221,24 @@ fn sync(example: &str, current: &str, env: &str, template: &str) -> Result<Strin
         });
     }
 
-    let deprecated: Vec<&str> = current
-        .lines()
-        .filter(|l| parse_assignment(l).is_some_and(|(k, _)| !known.contains(k)))
+    // Every other line of the env file is kept at the bottom: deprecated or repeated keys, and
+    // the user's own comments (not the template's, nor this header).
+    let template_lines: HashSet<&str> = example.lines().collect();
+    let rest: Vec<&String> = current
+        .iter()
+        .enumerate()
+        .filter(|(i, e)| {
+            !used.contains(i)
+                && !e.trim().is_empty()
+                && (parse_assignment(e).is_some()
+                    || !template_lines.contains(e.as_str()) && !header.contains(e))
+        })
+        .map(|(_, e)| e)
         .collect();
-    if !deprecated.is_empty() {
+    if !rest.is_empty() {
         out.push(String::new());
-        out.push("# ===================================================".to_string());
-        out.push("# ⚠️  DEPRECATED OR LOCAL VARIABLES".to_string());
-        out.push(format!("# The following variables are in your {env}"));
-        out.push(format!("# but are no longer tracked in {template}"));
-        out.push("# ===================================================".to_string());
-        out.extend(deprecated.iter().map(|l| l.to_string()));
+        out.extend(header);
+        out.extend(rest.into_iter().cloned());
     }
 
     out.push(String::new());
@@ -380,9 +431,30 @@ mod tests {
     }
 
     #[test]
+    fn keeps_export_prefix() {
+        assert_eq!(sync("A=1\n", "export A=9\n").unwrap(), "export A=9\n");
+    }
+
+    #[test]
+    fn keeps_multiline_values() {
+        let current = "K=\"-----BEGIN\nline2\n-----END\"\nB=2\n";
+        assert_eq!(sync("K=\nB=1\n", current).unwrap(), current);
+    }
+
+    #[test]
+    fn repeated_keys_and_own_comments_at_bottom() {
+        let out = sync("# t\nB=1\n", "# t\nB=7\nB=8\n# mine\n").unwrap();
+        assert!(out.starts_with("# t\nB=7\n\n# ==="));
+        assert!(out.ends_with("===\nB=8\n# mine\n"));
+        assert_eq!(sync("# t\nB=1\n", &out).unwrap(), out);
+    }
+
+    #[test]
     fn invalid_keys() {
         assert_eq!(parse_assignment("1A=x"), None);
         assert_eq!(parse_assignment("# A=x"), None);
         assert_eq!(parse_assignment(" A = x "), Some(("A", "x")));
+        assert_eq!(parse_assignment("export A=x"), Some(("A", "x")));
+        assert_eq!(parse_assignment("exportA=x"), Some(("exportA", "x")));
     }
 }
