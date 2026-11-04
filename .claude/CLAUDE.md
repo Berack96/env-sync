@@ -45,4 +45,4 @@ mise run lint                     # cargo fmt + clippy
 
 ## Architecture
 
-A single binary, all in `src/main.rs`, with the unit tests at the bottom of the file; end-to-end tests that run the binary are in `tests/cli.rs`. Release binaries are built by `staging.yml` for Linux, macOS and Windows: the archive names (`env-sync-<os>-<arch>`) let mise's `github:` backend pick the right one.
+A single binary, all in `src/main.rs`, with the unit tests at the bottom of the file; end-to-end tests that run the binary are in `tests/cli.rs`. Release binaries are built by `preview.yml` for Linux, macOS and Windows: the archive names (`env-sync-<os>-<arch>`) let mise's `github:` backend pick the right one.

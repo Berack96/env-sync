@@ -1,5 +1,5 @@
-# Push to main: staging tag `vYYYY.MM-staging.NNN` and pre-release with the binaries, which `production.yml` promotes.
-name: Staging
+# Push to main: preview tag `vYYYY.MM-preview.NNN` and pre-release with the binaries, which `release.yml` promotes.
+name: Preview
 
 on:
   push:
@@ -18,7 +18,7 @@ jobs:
       actions: read
     uses: Berack96/workflows/.github/workflows/release.yml@v0.4.0
     with:
-      tag: v{YYYY}.{MM}-staging.{NNN}
+      tag: v{YYYY}.{MM}-preview.{NNN}
       release-tag: v{X}.{Y}.{Z}
       dry-run: true
 
@@ -63,7 +63,7 @@ jobs:
       actions: read
     uses: Berack96/workflows/.github/workflows/release.yml@v0.4.0
     with:
-      tag: v{YYYY}.{MM}-staging.{NNN}
+      tag: v{YYYY}.{MM}-preview.{NNN}
       release-tag: v{X}.{Y}.{Z}
       github-release: prerelease
       expect-tag: ${{ needs.version.outputs.tag }}

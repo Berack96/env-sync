@@ -1,11 +1,11 @@
-# Manual: release `vX.Y.Z` from a staging tag, then the previous staging tags are deleted.
-name: Production
+# Manual: release `vX.Y.Z` from a preview tag, then the previous preview tags are deleted.
+name: Release
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Staging tag to release (empty for the latest)
+        description: Preview tag to release (empty for the latest)
         required: false
 
 permissions: {}
@@ -20,7 +20,7 @@ jobs:
       actions: read
     uses: Berack96/workflows/.github/workflows/release.yml@v0.4.0
     with:
-      from: v{YYYY}.{MM}-staging.{NNN}
+      from: v{YYYY}.{MM}-preview.{NNN}
       from-tag: ${{ inputs.tag }}
-      from-workflow: staging.yml
+      from-workflow: preview.yml
       prune: true
