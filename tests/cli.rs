@@ -79,3 +79,28 @@ fn rejects_arguments() {
     assert!(!run(&dir, &["extra"]).status.success());
     assert!(!dir.join(".env").exists());
 }
+
+#[test]
+fn unreadable_env_is_not_overwritten() {
+    let dir = workdir("unreadable", Some("A=1\n"), None);
+    fs::write(dir.join(".env"), [0xff, 0xfe]).unwrap();
+    assert!(!run(&dir, &[]).status.success());
+    assert_eq!(fs::read(dir.join(".env")).unwrap(), [0xff, 0xfe]);
+}
+
+#[test]
+fn leaves_no_temporary_file() {
+    let dir = workdir("tmp", Some("A=1\n"), None);
+    assert!(run(&dir, &[]).status.success());
+    assert!(!dir.join(".env.tmp").exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn env_is_readable_only_by_owner() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = workdir("mode", Some("A=1\n"), Some("A=2\n"));
+    assert!(run(&dir, &[]).status.success());
+    let mode = fs::metadata(dir.join(".env")).unwrap().permissions().mode();
+    assert_eq!(mode & 0o777, 0o600);
+}
