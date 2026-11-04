@@ -18,6 +18,8 @@ A `KEY=# Command` default is generated on the first sync:
 
 `Cmd` runs whatever `.env.example` says: sync only templates you trust.
 
+`.env` is replaced atomically; on Unix it ends up readable only by its owner (`0600`).
+
 ## Example
 
 `.env.example`:

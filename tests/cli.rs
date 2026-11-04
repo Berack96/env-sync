@@ -91,6 +91,7 @@ fn unreadable_env_is_not_overwritten() {
 #[test]
 fn leaves_no_temporary_file() {
     let dir = workdir("tmp", Some("A=1\n"), None);
+    fs::write(dir.join(".env.tmp"), "stale").unwrap();
     assert!(run(&dir, &[]).status.success());
     assert!(!dir.join(".env.tmp").exists());
 }
@@ -103,4 +104,15 @@ fn env_is_readable_only_by_owner() {
     assert!(run(&dir, &[]).status.success());
     let mode = fs::metadata(dir.join(".env")).unwrap().permissions().mode();
     assert_eq!(mode & 0o777, 0o600);
+}
+
+#[cfg(unix)]
+#[test]
+fn writes_through_a_symlinked_env() {
+    let dir = workdir("symlink", Some("A=1\n"), None);
+    fs::write(dir.join("real.env"), "A=2\n").unwrap();
+    std::os::unix::fs::symlink("real.env", dir.join(".env")).unwrap();
+    assert!(run(&dir, &[]).status.success());
+    assert!(fs::symlink_metadata(dir.join(".env")).unwrap().is_symlink());
+    assert_eq!(fs::read_to_string(dir.join("real.env")).unwrap(), "A=2\n");
 }

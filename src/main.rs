@@ -6,6 +6,9 @@
 
 use std::collections::HashSet;
 use std::fs;
+use std::io::Write;
+#[cfg(unix)]
+use std::os::unix::fs::OpenOptionsExt;
 
 const ENV_FILE: &str = ".env";
 const EXAMPLE_FILE: &str = ".env.example";
@@ -194,19 +197,24 @@ fn main() -> Result<(), String> {
     write_env(&sync(&example, &current)?).map_err(|e| format!("failed to write {ENV_FILE}: {e}"))
 }
 
-/// Writes a temporary file and renames it over `.env`, so a crash never leaves it half written.
-/// On Unix the file is readable only by its owner.
+/// Writes a temporary file and renames it over `.env` (or the file it links to), so a failed write
+/// never leaves it half written. On Unix the file is readable only by its owner.
 fn write_env(content: &str) -> std::io::Result<()> {
-    let tmp = format!("{ENV_FILE}.tmp");
+    let target = match fs::canonicalize(ENV_FILE) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => ENV_FILE.into(),
+        r => r?,
+    };
+    let mut tmp = target.clone().into_os_string();
+    tmp.push(".tmp");
     let _ = fs::remove_file(&tmp);
     let mut options = fs::OpenOptions::new();
     options.write(true).create_new(true);
     #[cfg(unix)]
-    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    options.mode(0o600);
     let result = options
         .open(&tmp)
-        .and_then(|mut f| std::io::Write::write_all(&mut f, content.as_bytes()))
-        .and_then(|_| fs::rename(&tmp, ENV_FILE));
+        .and_then(|mut f| f.write_all(content.as_bytes()).and_then(|_| f.sync_all()))
+        .and_then(|_| fs::rename(&tmp, &target));
     if result.is_err() {
         let _ = fs::remove_file(&tmp);
     }
