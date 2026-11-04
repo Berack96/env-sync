@@ -40,7 +40,9 @@ jobs:
     with:
       runs-on: ${{ matrix.runner }}
       mise: true
+      # Tests on every platform first: a failure stops the pre-release.
       run: |
+        mise run test
         cargo build --release
         mkdir -p dist
         if [[ "$RUNNER_OS" == "Windows" ]]; then
