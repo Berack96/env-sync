@@ -134,3 +134,38 @@ fn dangling_symlink_fails() {
     assert!(!run(&dir, &[]).status.success());
     assert!(fs::symlink_metadata(dir.join(".env")).unwrap().is_symlink());
 }
+
+#[test]
+fn custom_env_and_template() {
+    let dir = workdir("custom", None, None);
+    fs::write(dir.join("prod.example"), "A=1\n").unwrap();
+    fs::write(dir.join(".env.prod"), "OLD=x\n").unwrap();
+    assert!(
+        run(&dir, &["-e", ".env.prod", "--template", "prod.example"])
+            .status
+            .success()
+    );
+    let env = fs::read_to_string(dir.join(".env.prod")).unwrap();
+    assert!(env.starts_with("A=1\n"));
+    assert!(env.contains("are in your .env.prod"));
+    assert!(env.contains("no longer tracked in prod.example"));
+    assert!(!dir.join(".env").exists());
+}
+
+#[test]
+fn refuses_to_overwrite_the_template() {
+    let dir = workdir("same", Some("A=1\n"), None);
+    assert!(!run(&dir, &["--env", ".env.example"]).status.success());
+    assert_eq!(
+        fs::read_to_string(dir.join(".env.example")).unwrap(),
+        "A=1\n"
+    );
+}
+
+#[test]
+fn prints_help() {
+    let dir = workdir("help", None, None);
+    let out = run(&dir, &["--help"]);
+    assert!(out.status.success());
+    assert!(String::from_utf8_lossy(&out.stdout).contains("--template"));
+}

@@ -57,6 +57,21 @@ DB_PASSWORD=3f9c...e1a7
 OLD_FLAG=1
 ```
 
+## Options
+
+```text
+-e, --env <file>       env file to sync, read and rewritten [default: .env]
+-t, --template <file>  template to sync from [default: .env.example]
+-h, --help             print this help
+```
+
+One template can feed several env files, or each can have its own:
+
+```bash
+env-sync --env .env.prod
+env-sync -e .env.test -t .env.test.example
+```
+
 ## Install
 
 Download and extract the archive for your platform from the
