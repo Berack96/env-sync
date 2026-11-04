@@ -1,10 +1,10 @@
 //! Syncs `.env` with `.env.example`: keeps the template's order, comments and blank lines,
-//! preserves values already set, generates missing defaults and moves keys no longer in the
-//! template to the bottom.
+//! preserves values already set, generates missing defaults and moves every other line of the
+//! env file (deprecated or repeated keys, the user's own comments) to the bottom.
 //!
 //! Usage: `env-sync [--env <file>] [--template <file>]`, see [`USAGE`].
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::Write;
 #[cfg(unix)]
@@ -26,10 +26,11 @@ Options:
 /// allowed) returns (key, value).
 fn parse_assignment(line: &str) -> Option<(&str, &str)> {
     let line = line.trim_start();
-    let line = line
-        .strip_prefix("export")
-        .filter(|rest| rest.starts_with(char::is_whitespace))
-        .unwrap_or(line);
+    if let Some(rest) = exported(line)
+        && let Some(assignment) = parse_assignment(rest)
+    {
+        return Some(assignment);
+    }
     let (key, value) = line.split_once('=')?;
     let key = key.trim();
     let mut chars = key.chars();
@@ -40,31 +41,39 @@ fn parse_assignment(line: &str) -> Option<(&str, &str)> {
     valid.then_some((key, value.trim()))
 }
 
+/// The rest of `line` after an `export ` prefix, if it has one.
+fn exported(line: &str) -> Option<&str> {
+    line.trim_start()
+        .strip_prefix("export")
+        .filter(|rest| rest.starts_with(char::is_whitespace))
+}
+
 /// Lines of `text`, with a quoted value that spans several lines joined into one entry.
 /// shortcut: escaped quotes (`\"`) are not recognized, handle them if a real file needs it.
 fn entries(text: &str) -> Vec<String> {
+    let lines: Vec<&str> = text.lines().collect();
     let mut out = Vec::new();
-    let mut lines = text.lines();
-    while let Some(line) = lines.next() {
-        let mut entry = line.to_string();
+    let mut i = 0;
+    while i < lines.len() {
+        let line = lines[i];
+        i += 1;
         let quote = parse_assignment(line).and_then(|(_, v)| {
             v.chars()
                 .next()
                 .filter(|q| ['"', '\''].contains(q))
                 .zip(Some(v))
         });
-        if let Some((q, value)) = quote
-            && !value[1..].contains(q)
-        {
-            for next in lines.by_ref() {
-                entry.push('\n');
-                entry.push_str(next);
-                if next.contains(q) {
-                    break;
-                }
-            }
-        }
-        out.push(entry);
+        // An unterminated quote stays a single line, so it cannot swallow the rest of the file.
+        let end = match quote {
+            Some((q, value)) if !value[1..].contains(q) => lines[i..]
+                .iter()
+                .position(|l| l.contains(q))
+                .map(|p| i + p + 1),
+            _ => None,
+        };
+        let end = end.unwrap_or(i);
+        out.push(lines[i - 1..end].join("\n"));
+        i = end;
     }
     out
 }
@@ -215,26 +224,44 @@ fn sync(example: &str, current: &str, env: &str, template: &str) -> Result<Strin
                 current[i].clone()
             }
             None => format!(
-                "{key}={}",
+                "{}{key}={}",
+                if exported(&entry).is_some() {
+                    "export "
+                } else {
+                    ""
+                },
                 eval_default(default).map_err(|e| format!("{key}: {e}"))?
             ),
         });
     }
 
     // Every other line of the env file is kept at the bottom: deprecated or repeated keys, and
-    // the user's own comments (not the template's, nor this header).
-    let template_lines: HashSet<&str> = example.lines().collect();
-    let rest: Vec<&String> = current
-        .iter()
-        .enumerate()
-        .filter(|(i, e)| {
-            !used.contains(i)
-                && !e.trim().is_empty()
-                && (parse_assignment(e).is_some()
-                    || !template_lines.contains(e.as_str()) && !header.contains(e))
-        })
-        .map(|(_, e)| e)
-        .collect();
+    // the user's own comments (not a template line already in place, nor a warning header).
+    let mut template_lines: HashMap<&str, usize> = HashMap::new();
+    for line in example.lines() {
+        *template_lines.entry(line).or_default() += 1;
+    }
+    let is_header = |e: &str| {
+        header.iter().any(|h| h == e)
+            || e.starts_with("# The following variables are in your ")
+            || e.starts_with("# but are no longer tracked in ")
+    };
+    let mut rest: Vec<&String> = Vec::new();
+    for (i, e) in current.iter().enumerate() {
+        if used.contains(&i) || e.trim().is_empty() {
+            continue;
+        }
+        if parse_assignment(e).is_none() {
+            if let Some(n) = template_lines.get_mut(e.as_str()).filter(|n| **n > 0) {
+                *n -= 1;
+                continue;
+            }
+            if is_header(e) {
+                continue;
+            }
+        }
+        rest.push(e);
+    }
     if !rest.is_empty() {
         out.push(String::new());
         out.extend(header);
@@ -450,11 +477,35 @@ mod tests {
     }
 
     #[test]
+    fn unterminated_quote_is_one_line() {
+        let example = "A=1\nB=\"\nC=3\nexport D=4\n";
+        assert_eq!(
+            sync(example, "C=9\n").unwrap(),
+            "A=1\nB=\"\nC=9\nexport D=4\n"
+        );
+    }
+
+    #[test]
+    fn repeated_own_comments_kept() {
+        let out = sync("# t\nA=1\n", "# t\nA=1\n# t\n").unwrap();
+        assert!(out.ends_with("===\n# t\n"));
+    }
+
+    #[test]
+    fn old_header_dropped_after_template_rename() {
+        let old = super::sync("A=1\n", "OLD=x\n", ENV_FILE, "old.example").unwrap();
+        let out = sync("A=1\n", &old).unwrap();
+        assert_eq!(out.matches("# ===").count(), 2);
+        assert!(!out.contains("old.example"));
+    }
+
+    #[test]
     fn invalid_keys() {
         assert_eq!(parse_assignment("1A=x"), None);
         assert_eq!(parse_assignment("# A=x"), None);
         assert_eq!(parse_assignment(" A = x "), Some(("A", "x")));
         assert_eq!(parse_assignment("export A=x"), Some(("A", "x")));
         assert_eq!(parse_assignment("exportA=x"), Some(("exportA", "x")));
+        assert_eq!(parse_assignment("export = x"), Some(("export", "x")));
     }
 }

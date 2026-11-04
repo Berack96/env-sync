@@ -9,6 +9,7 @@ Syncs `.env` with `.env.example`, in the current folder:
   bottom, under a warning: nothing is lost.
 
 `export KEY=value` lines and quoted values spanning several lines are kept as they are.
+A comment later removed from the template is kept at the bottom too, as it can no longer be told apart from your own.
 
 A `KEY=# Command` default is generated on the first sync:
 
