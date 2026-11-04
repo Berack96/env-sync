@@ -47,7 +47,8 @@ OLD_FLAG=1
 
 ## Install
 
-Download and extract the archive for your platform from the [releases](https://github.com/Berack96/env-sync/releases) and put
+Download and extract the archive for your platform from the
+[releases](https://github.com/Berack96/env-sync/releases) (`env-sync-<os>-<arch>.tar.gz`, `.zip` on Windows) and put
 `env-sync` on your `PATH`.
 
 ## Development
