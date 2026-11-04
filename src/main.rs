@@ -59,14 +59,14 @@ impl CommandEnvs {
                 let mut b = random_bytes::<16>();
                 b[6] = (b[6] & 0x0f) | 0x40;
                 b[8] = (b[8] & 0x3f) | 0x80;
-                let hex = hex(&b);
+                let h = hex(&b);
                 Ok(format!(
                     "{}-{}-{}-{}-{}",
-                    &hex[..8],
-                    &hex[8..12],
-                    &hex[12..16],
-                    &hex[16..20],
-                    &hex[20..]
+                    &h[..8],
+                    &h[8..12],
+                    &h[12..16],
+                    &h[16..20],
+                    &h[20..]
                 ))
             }
             Self::Cmd(cmd) => run_shell(cmd),
@@ -262,8 +262,13 @@ mod tests {
             "V=kept\n"
         );
         assert!(sync("V=# Cmd exit 1\n", "").is_err());
-        assert!(sync("V=# Cmd echo a; echo b\n", "").is_err());
         assert!(sync("V=# Cmd\n", "").is_err());
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn cmd_rejects_multiline_output() {
+        assert!(sync("V=# Cmd echo a; echo b\n", "").is_err());
     }
 
     #[test]
