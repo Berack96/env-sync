@@ -18,7 +18,7 @@ jobs:
       contents: write
       pull-requests: read
       actions: read
-    uses: Berack96/workflows/.github/workflows/release.yml@v0.4.0
+    uses: Berack96/workflows/.github/workflows/release.yml@v1.0.0
     with:
       from: v{YYYY}.{MM}-preview.{NNN}
       from-tag: ${{ inputs.tag }}

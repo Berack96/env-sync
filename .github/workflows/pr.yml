@@ -18,7 +18,7 @@ jobs:
     if: ${{ !github.event.pull_request.draft }}
     permissions:
       contents: read
-    uses: Berack96/workflows/.github/workflows/test.yml@v0.4.0
+    uses: Berack96/workflows/.github/workflows/test.yml@v1.0.0
     with:
       mise: true
       # `lint` reformats without failing: check the format first.
@@ -33,4 +33,4 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: Berack96/workflows/.github/workflows/security.yml@v0.4.0
+    uses: Berack96/workflows/.github/workflows/security.yml@v1.0.0

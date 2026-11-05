@@ -11,4 +11,4 @@ jobs:
   title:
     name: Title
     if: ${{ !github.event.pull_request.draft }}
-    uses: Berack96/workflows/.github/workflows/pr-title.yml@v0.4.0
+    uses: Berack96/workflows/.github/workflows/pr-title.yml@v1.0.0
