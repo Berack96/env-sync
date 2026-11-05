@@ -16,7 +16,7 @@ jobs:
       contents: write
       pull-requests: read
       actions: read
-    uses: Berack96/workflows/.github/workflows/release.yml@v0.4.0
+    uses: Berack96/workflows/.github/workflows/release.yml@v1.0.0
     with:
       tag: v{YYYY}.{MM}-preview.{NNN}
       release-tag: v{X}.{Y}.{Z}
@@ -36,7 +36,7 @@ jobs:
           - { runner: windows-latest, name: windows-x64 }
     permissions:
       contents: read
-    uses: Berack96/workflows/.github/workflows/test.yml@v0.4.0
+    uses: Berack96/workflows/.github/workflows/test.yml@v1.0.0
     with:
       runs-on: ${{ matrix.runner }}
       mise: true
@@ -61,7 +61,7 @@ jobs:
       contents: write
       pull-requests: read
       actions: read
-    uses: Berack96/workflows/.github/workflows/release.yml@v0.4.0
+    uses: Berack96/workflows/.github/workflows/release.yml@v1.0.0
     with:
       tag: v{YYYY}.{MM}-preview.{NNN}
       release-tag: v{X}.{Y}.{Z}
