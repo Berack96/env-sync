@@ -20,7 +20,9 @@ Syncs the env file with its template, in the current folder.
 Options:
   -e, --env <file>       env file to sync, read and rewritten [default: .env]
   -t, --template <file>  template to sync from [default: .env.example]
-  -h, --help             print this help";
+  -h, --help             print this help
+
+Exit status: 0 on success, 2 on error.";
 
 /// If the line is a `KEY=value` assignment (spaces around the equals sign and an `export` prefix
 /// allowed) returns (key, value).
@@ -294,7 +296,7 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Option<(String, 
 fn main() {
     if let Err(e) = run() {
         eprintln!("error: {e}");
-        std::process::exit(1);
+        std::process::exit(2);
     }
 }
 

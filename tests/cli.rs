@@ -59,7 +59,7 @@ fn second_run_changes_nothing() {
 fn missing_template_fails_without_creating_env() {
     let dir = workdir("no-template", None, None);
     let out = run(&dir, &[]);
-    assert!(!out.status.success());
+    assert_eq!(out.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&out.stderr).contains(".env.example"));
     assert!(!dir.join(".env").exists());
 }
