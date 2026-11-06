@@ -2,7 +2,7 @@
 //! preserves values already set, generates missing defaults and moves every other line of the
 //! env file (deprecated or repeated keys, the user's own comments) to the bottom.
 //!
-//! Usage: `env-sync [--env <file>] [--template <file>]`, see [`USAGE`].
+//! Usage: `env-sync [--env <file>] [--template <file>] [--check]`, see [`USAGE`].
 
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -12,17 +12,26 @@ use std::os::unix::fs::OpenOptionsExt;
 
 const ENV_FILE: &str = ".env";
 const EXAMPLE_FILE: &str = ".env.example";
+const DEPRECATED_TITLE: &str = "# ⚠️  DEPRECATED OR LOCAL VARIABLES";
 const USAGE: &str = "\
-Usage: env-sync [--env <file>] [--template <file>]
+Usage: env-sync [--env <file>] [--template <file>] [--check]
 
 Syncs the env file with its template, in the current folder.
 
 Options:
   -e, --env <file>       env file to sync, read and rewritten [default: .env]
   -t, --template <file>  template to sync from [default: .env.example]
+  -c, --check            print the keys a sync would add (+) or deprecate (-),
+                         without writing the env file or running commands
   -h, --help             print this help
 
-Exit status: 0 on success, 2 on error.";
+Exit status: 0 on success, 1 if --check finds changes, 2 on error.";
+
+#[derive(Debug, PartialEq)]
+enum Mode {
+    Sync,
+    Check,
+}
 
 /// If the line is a `KEY=value` assignment (spaces around the equals sign and an `export` prefix
 /// allowed) returns (key, value).
@@ -200,11 +209,17 @@ fn eval_default(value: &str) -> Result<String, String> {
 }
 
 /// Content of the new env file (named `env`), from the template (named `template`) and the
-/// current env file (empty if missing).
-fn sync(example: &str, current: &str, env: &str, template: &str) -> Result<String, String> {
+/// current env file (empty if missing). Without `run_commands` missing keys get the raw default.
+fn sync(
+    example: &str,
+    current: &str,
+    env: &str,
+    template: &str,
+    run_commands: bool,
+) -> Result<String, String> {
     let header = [
         "# ===================================================".to_string(),
-        "# ⚠️  DEPRECATED OR LOCAL VARIABLES".to_string(),
+        DEPRECATED_TITLE.to_string(),
         format!("# The following variables are in your {env}"),
         format!("# but are no longer tracked in {template}"),
         "# ===================================================".to_string(),
@@ -232,7 +247,11 @@ fn sync(example: &str, current: &str, env: &str, template: &str) -> Result<Strin
                 } else {
                     ""
                 },
-                eval_default(default).map_err(|e| format!("{key}: {e}"))?
+                if run_commands {
+                    eval_default(default).map_err(|e| format!("{key}: {e}"))?
+                } else {
+                    default.to_string()
+                }
             ),
         });
     }
@@ -274,14 +293,59 @@ fn sync(example: &str, current: &str, env: &str, template: &str) -> Result<Strin
     Ok(out.join("\n"))
 }
 
-/// `(env, template)` from the command line, `None` if help was asked.
-fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Option<(String, String)>, String> {
+/// `(key, value)` of each assignment in `text`, first occurrence only. With `active_only` the
+/// deprecated section is skipped.
+fn assignments(text: &str, active_only: bool) -> Vec<(String, String)> {
+    let mut out: Vec<(String, String)> = Vec::new();
+    for entry in entries(text) {
+        if active_only && entry == DEPRECATED_TITLE {
+            break;
+        }
+        if let Some((key, value)) = parse_assignment(&entry)
+            && !out.iter().any(|(k, _)| k == key)
+        {
+            out.push((key.to_string(), value.to_string()));
+        }
+    }
+    out
+}
+
+/// Keys that differ from `old` to `new`: `-` only in `old`, `~` changed value, `+` only in `new`.
+fn diff(old: &[(String, String)], new: &[(String, String)]) -> Vec<String> {
+    let find = |list: &[(String, String)], key: &str| {
+        list.iter().find(|(k, _)| k == key).map(|(_, v)| v.clone())
+    };
+    let mut out = Vec::new();
+    for (key, value) in old {
+        match find(new, key) {
+            None => out.push(format!("-{key}")),
+            Some(v) if &v != value => out.push(format!("~{key}")),
+            _ => {}
+        }
+    }
+    for (key, _) in new {
+        if find(old, key).is_none() {
+            out.push(format!("+{key}"));
+        }
+    }
+    out
+}
+
+/// `(env, template, mode)` from the command line, `None` if help was asked.
+fn parse_args(
+    args: impl IntoIterator<Item = String>,
+) -> Result<Option<(String, String, Mode)>, String> {
     let (mut env, mut template) = (ENV_FILE.to_string(), EXAMPLE_FILE.to_string());
+    let mut check = false;
     let mut args = args.into_iter();
     while let Some(arg) = args.next() {
         let slot = match arg.as_str() {
             "-e" | "--env" => &mut env,
             "-t" | "--template" => &mut template,
+            "-c" | "--check" => {
+                check = true;
+                continue;
+            }
             "-h" | "--help" => return Ok(None),
             _ => return Err(format!("unknown argument: {arg}\n\n{USAGE}")),
         };
@@ -290,20 +354,25 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Option<(String, 
             .filter(|v| !v.starts_with('-'))
             .ok_or_else(|| format!("{arg} needs a file\n\n{USAGE}"))?;
     }
-    Ok(Some((env, template)))
+    let mode = if check { Mode::Check } else { Mode::Sync };
+    Ok(Some((env, template, mode)))
 }
 
 fn main() {
-    if let Err(e) = run() {
-        eprintln!("error: {e}");
-        std::process::exit(2);
+    match run() {
+        Ok(changed) => std::process::exit(i32::from(changed)),
+        Err(e) => {
+            eprintln!("error: {e}");
+            std::process::exit(2);
+        }
     }
 }
 
-fn run() -> Result<(), String> {
-    let Some((env, template)) = parse_args(std::env::args().skip(1))? else {
+/// `true` if a check found changes.
+fn run() -> Result<bool, String> {
+    let Some((env, template, mode)) = parse_args(std::env::args().skip(1))? else {
         println!("{USAGE}");
-        return Ok(());
+        return Ok(false);
     };
     let example =
         fs::read_to_string(&template).map_err(|e| format!("failed to read {template}: {e}"))?;
@@ -315,9 +384,16 @@ fn run() -> Result<(), String> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
         r => r.map_err(|e| format!("failed to read {env}: {e}"))?,
     };
-    let content =
-        sync(&example, &current, &env, &template).map_err(|e| format!("{template}: {e}"))?;
-    write_env(&env, &content).map_err(|e| format!("failed to write {env}: {e}"))
+    let content = sync(&example, &current, &env, &template, mode == Mode::Sync)
+        .map_err(|e| format!("{template}: {e}"))?;
+    if mode == Mode::Check {
+        for change in diff(&assignments(&current, true), &assignments(&content, true)) {
+            println!("{change}");
+        }
+        return Ok(content != current);
+    }
+    write_env(&env, &content).map_err(|e| format!("failed to write {env}: {e}"))?;
+    Ok(false)
 }
 
 /// Writes a temporary file and renames it over `env` (or the file it links to), so a failed write
@@ -356,16 +432,16 @@ mod tests {
     use super::*;
 
     fn sync(example: &str, current: &str) -> Result<String, String> {
-        super::sync(example, current, ENV_FILE, EXAMPLE_FILE)
+        super::sync(example, current, ENV_FILE, EXAMPLE_FILE, true)
     }
 
-    fn args(list: &[&str]) -> Result<Option<(String, String)>, String> {
+    fn args(list: &[&str]) -> Result<Option<(String, String, Mode)>, String> {
         parse_args(list.iter().map(|a| a.to_string()))
     }
 
     #[test]
     fn parses_arguments() {
-        let pair = |e: &str, t: &str| Ok(Some((e.to_string(), t.to_string())));
+        let pair = |e: &str, t: &str| Ok(Some((e.to_string(), t.to_string(), Mode::Sync)));
         assert_eq!(args(&[]), pair(".env", ".env.example"));
         assert_eq!(
             args(&["-e", ".env.prod"]),
@@ -373,6 +449,10 @@ mod tests {
         );
         assert_eq!(args(&["--template", "t", "--env", "e"]), pair("e", "t"));
         assert_eq!(args(&["--help"]), Ok(None));
+        assert_eq!(
+            args(&["--check"]),
+            Ok(Some((ENV_FILE.into(), EXAMPLE_FILE.into(), Mode::Check)))
+        );
         assert!(args(&["--env"]).is_err());
         assert!(args(&["-e", "-t", "x"]).is_err());
         assert!(args(&["extra"]).is_err());
@@ -508,10 +588,30 @@ mod tests {
 
     #[test]
     fn old_header_dropped_after_template_rename() {
-        let old = super::sync("A=1\n", "OLD=x\n", ENV_FILE, "old.example").unwrap();
+        let old = super::sync("A=1\n", "OLD=x\n", ENV_FILE, "old.example", true).unwrap();
         let out = sync("A=1\n", &old).unwrap();
         assert_eq!(out.matches("# ===").count(), 2);
         assert!(!out.contains("old.example"));
+    }
+
+    #[test]
+    fn check_runs_no_command() {
+        let out = super::sync("V=# Cmd exit 1\n", "", ENV_FILE, EXAMPLE_FILE, false);
+        assert_eq!(out.unwrap(), "V=# Cmd exit 1\n");
+    }
+
+    #[test]
+    fn diffs_keys() {
+        let old = assignments("A=1\nB=2\nK=\"x\ny\"\nD=0\n", false);
+        let new = assignments("export B=3\nK=\"x\nz\"\nC=4\nA=1\nA=9\n", false);
+        assert_eq!(diff(&old, &new), ["~B", "~K", "-D", "+C"]);
+    }
+
+    #[test]
+    fn active_assignments_skip_deprecated() {
+        let out = sync("A=1\n", "OLD=x\n").unwrap();
+        assert_eq!(assignments(&out, true), [("A".into(), "1".into())]);
+        assert_eq!(assignments(&out, false).len(), 2);
     }
 
     #[test]

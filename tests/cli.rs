@@ -169,3 +169,22 @@ fn prints_help() {
     assert!(out.status.success());
     assert!(String::from_utf8_lossy(&out.stdout).contains("--template"));
 }
+
+#[test]
+fn check_lists_changes_without_writing() {
+    let example = "A=1\nNEW=# Cmd exit 1\n";
+    let dir = workdir("check", Some(example), Some("A=2\nOLD=x\n"));
+    let out = run(&dir, &["--check"]);
+    assert_eq!(out.status.code(), Some(1));
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "-OLD\n+NEW\n");
+    assert_eq!(read_env(&dir), "A=2\nOLD=x\n");
+}
+
+#[test]
+fn check_passes_on_synced_env() {
+    let dir = workdir("check-ok", Some("A=1\n"), Some("OLD=x\n"));
+    assert!(run(&dir, &[]).status.success());
+    let out = run(&dir, &["-c"]);
+    assert_eq!(out.status.code(), Some(0));
+    assert!(out.stdout.is_empty());
+}
