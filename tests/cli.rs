@@ -188,3 +188,14 @@ fn check_passes_on_synced_env() {
     assert_eq!(out.status.code(), Some(0));
     assert!(out.stdout.is_empty());
 }
+
+#[test]
+fn diff_lists_keys_only() {
+    let dir = workdir("diff", None, Some("A=1\nB=secret\nK=\"x\ny\"\n"));
+    fs::write(dir.join("other.env"), "K=\"x\nz\"\nB=secret\nC=new\n").unwrap();
+    let out = run(&dir, &["--diff", "other.env"]);
+    assert_eq!(out.status.code(), Some(1));
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "-A\n~K\n+C\n");
+    assert_eq!(run(&dir, &["-d", ".env"]).status.code(), Some(0));
+    assert_eq!(run(&dir, &["-d", "missing.env"]).status.code(), Some(2));
+}

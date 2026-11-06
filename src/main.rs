@@ -2,7 +2,7 @@
 //! preserves values already set, generates missing defaults and moves every other line of the
 //! env file (deprecated or repeated keys, the user's own comments) to the bottom.
 //!
-//! Usage: `env-sync [--env <file>] [--template <file>] [--check]`, see [`USAGE`].
+//! Usage: `env-sync [--env <file>] [--template <file>] [--check | --diff <file>]`, see [`USAGE`].
 
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -14,7 +14,7 @@ const ENV_FILE: &str = ".env";
 const EXAMPLE_FILE: &str = ".env.example";
 const DEPRECATED_TITLE: &str = "# ⚠️  DEPRECATED OR LOCAL VARIABLES";
 const USAGE: &str = "\
-Usage: env-sync [--env <file>] [--template <file>] [--check]
+Usage: env-sync [--env <file>] [--template <file>] [--check | --diff <file>]
 
 Syncs the env file with its template, in the current folder.
 
@@ -23,14 +23,17 @@ Options:
   -t, --template <file>  template to sync from [default: .env.example]
   -c, --check            print the keys a sync would add (+) or deprecate (-),
                          without writing the env file or running commands
+  -d, --diff <file>      print the keys added (+), removed (-) or changed (~) in
+                         <file> compared to the env file; the template is not read
   -h, --help             print this help
 
-Exit status: 0 on success, 1 if --check finds changes, 2 on error.";
+Exit status: 0 on success, 1 if --check or --diff finds changes, 2 on error.";
 
 #[derive(Debug, PartialEq)]
 enum Mode {
     Sync,
     Check,
+    Diff(String),
 }
 
 /// If the line is a `KEY=value` assignment (spaces around the equals sign and an `export` prefix
@@ -337,6 +340,7 @@ fn parse_args(
 ) -> Result<Option<(String, String, Mode)>, String> {
     let (mut env, mut template) = (ENV_FILE.to_string(), EXAMPLE_FILE.to_string());
     let mut check = false;
+    let mut other = None;
     let mut args = args.into_iter();
     while let Some(arg) = args.next() {
         let slot = match arg.as_str() {
@@ -346,6 +350,7 @@ fn parse_args(
                 check = true;
                 continue;
             }
+            "-d" | "--diff" => other.insert(String::new()),
             "-h" | "--help" => return Ok(None),
             _ => return Err(format!("unknown argument: {arg}\n\n{USAGE}")),
         };
@@ -354,7 +359,12 @@ fn parse_args(
             .filter(|v| !v.starts_with('-'))
             .ok_or_else(|| format!("{arg} needs a file\n\n{USAGE}"))?;
     }
-    let mode = if check { Mode::Check } else { Mode::Sync };
+    let mode = match (check, other) {
+        (true, Some(_)) => return Err(format!("--check and --diff are exclusive\n\n{USAGE}")),
+        (true, None) => Mode::Check,
+        (false, Some(other)) => Mode::Diff(other),
+        (false, None) => Mode::Sync,
+    };
     Ok(Some((env, template, mode)))
 }
 
@@ -374,6 +384,18 @@ fn run() -> Result<bool, String> {
         println!("{USAGE}");
         return Ok(false);
     };
+    let read =
+        |file: &str| fs::read_to_string(file).map_err(|e| format!("failed to read {file}: {e}"));
+    if let Mode::Diff(other) = &mode {
+        let changes = diff(
+            &assignments(&read(&env)?, false),
+            &assignments(&read(other)?, false),
+        );
+        for change in &changes {
+            println!("{change}");
+        }
+        return Ok(!changes.is_empty());
+    }
     let example =
         fs::read_to_string(&template).map_err(|e| format!("failed to read {template}: {e}"))?;
     if fs::canonicalize(&env).ok() == Some(fs::canonicalize(&template).map_err(|e| e.to_string())?)
@@ -453,6 +475,16 @@ mod tests {
             args(&["--check"]),
             Ok(Some((ENV_FILE.into(), EXAMPLE_FILE.into(), Mode::Check)))
         );
+        assert_eq!(
+            args(&["-d", "x"]),
+            Ok(Some((
+                ENV_FILE.into(),
+                EXAMPLE_FILE.into(),
+                Mode::Diff("x".into())
+            )))
+        );
+        assert!(args(&["--diff"]).is_err());
+        assert!(args(&["--check", "--diff", "x"]).is_err());
         assert!(args(&["--env"]).is_err());
         assert!(args(&["-e", "-t", "x"]).is_err());
         assert!(args(&["extra"]).is_err());
