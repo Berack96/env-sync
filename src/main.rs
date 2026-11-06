@@ -410,8 +410,12 @@ fn run() -> Result<bool, String> {
     let content = sync(&example, &current, &env, &template, mode == Mode::Sync)
         .map_err(|e| format!("{template}: {e}"))?;
     if mode == Mode::Check {
-        for change in diff(&assignments(&current, true), &assignments(&content, true)) {
+        let changes = diff(&assignments(&current, true), &assignments(&content, true));
+        for change in &changes {
             println!("{change}");
+        }
+        if changes.is_empty() && content != current {
+            eprintln!("{env} would change, but no key would be added or deprecated");
         }
         return Ok(content != current);
     }

@@ -74,7 +74,8 @@ OLD_FLAG=1
 ```
 
 `--check` and `--diff` print only key names, never values, so their output is safe to log. A multi-line value is
-compared as a whole. Exit status: `0` no changes, `1` changes found, `2` error (a plain sync exits with `0` or `2`).
+compared as a whole. Keys already in the deprecated section are not listed by `--check`; when only order,
+comments or repeated keys would change, it says so on stderr and still exits with `1`. Exit status: `0` no changes, `1` changes found, `2` error (a plain sync exits with `0` or `2`).
 
 ```bash
 env-sync --check                  # in CI: fails if .env is out of sync with .env.example

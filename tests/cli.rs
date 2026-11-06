@@ -190,6 +190,15 @@ fn check_passes_on_synced_env() {
 }
 
 #[test]
+fn check_reports_layout_only_changes() {
+    let dir = workdir("check-layout", Some("A=1\n"), Some("A=1\nA=2\n"));
+    let out = run(&dir, &["--check"]);
+    assert_eq!(out.status.code(), Some(1));
+    assert!(out.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("would change"));
+}
+
+#[test]
 fn diff_lists_keys_only() {
     let dir = workdir("diff", None, Some("A=1\nB=secret\nK=\"x\ny\"\n"));
     fs::write(dir.join("other.env"), "K=\"x\nz\"\nB=secret\nC=new\n").unwrap();
