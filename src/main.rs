@@ -384,9 +384,10 @@ fn run() -> Result<bool, String> {
         println!("{USAGE}");
         return Ok(false);
     };
-    let read =
-        |file: &str| fs::read_to_string(file).map_err(|e| format!("failed to read {file}: {e}"));
     if let Mode::Diff(other) = &mode {
+        let read = |file: &str| {
+            fs::read_to_string(file).map_err(|e| format!("failed to read {file}: {e}"))
+        };
         let changes = diff(
             &assignments(&read(&env)?, false),
             &assignments(&read(other)?, false),
