@@ -59,7 +59,7 @@ fn second_run_changes_nothing() {
 fn missing_template_fails_without_creating_env() {
     let dir = workdir("no-template", None, None);
     let out = run(&dir, &[]);
-    assert!(!out.status.success());
+    assert_eq!(out.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&out.stderr).contains(".env.example"));
     assert!(!dir.join(".env").exists());
 }
@@ -168,4 +168,43 @@ fn prints_help() {
     let out = run(&dir, &["--help"]);
     assert!(out.status.success());
     assert!(String::from_utf8_lossy(&out.stdout).contains("--template"));
+}
+
+#[test]
+fn check_lists_changes_without_writing() {
+    let example = "A=1\nNEW=# Cmd exit 1\n";
+    let dir = workdir("check", Some(example), Some("A=2\nOLD=x\n"));
+    let out = run(&dir, &["--check"]);
+    assert_eq!(out.status.code(), Some(1));
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "-OLD\n+NEW\n");
+    assert_eq!(read_env(&dir), "A=2\nOLD=x\n");
+}
+
+#[test]
+fn check_passes_on_synced_env() {
+    let dir = workdir("check-ok", Some("A=1\n"), Some("OLD=x\n"));
+    assert!(run(&dir, &[]).status.success());
+    let out = run(&dir, &["-c"]);
+    assert_eq!(out.status.code(), Some(0));
+    assert!(out.stdout.is_empty());
+}
+
+#[test]
+fn check_reports_layout_only_changes() {
+    let dir = workdir("check-layout", Some("A=1\n"), Some("A=1\nA=2\n"));
+    let out = run(&dir, &["--check"]);
+    assert_eq!(out.status.code(), Some(1));
+    assert!(out.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("would change"));
+}
+
+#[test]
+fn diff_lists_keys_only() {
+    let dir = workdir("diff", None, Some("A=1\nB=secret\nK=\"x\ny\"\n"));
+    fs::write(dir.join("other.env"), "K=\"x\nz\"\nB=secret\nC=new\n").unwrap();
+    let out = run(&dir, &["--diff", "other.env"]);
+    assert_eq!(out.status.code(), Some(1));
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "-A\n~K\n+C\n");
+    assert_eq!(run(&dir, &["-d", ".env"]).status.code(), Some(0));
+    assert_eq!(run(&dir, &["-d", "missing.env"]).status.code(), Some(2));
 }

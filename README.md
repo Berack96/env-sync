@@ -66,7 +66,20 @@ OLD_FLAG=1
 ```text
 -e, --env <file>       env file to sync, read and rewritten [default: .env]
 -t, --template <file>  template to sync from [default: .env.example]
+-c, --check            print the keys a sync would add (+) or deprecate (-),
+                       without writing the env file or running commands
+-d, --diff <file>      print the keys added (+), removed (-) or changed (~) in
+                       <file> compared to the env file; the template is not read
 -h, --help             print this help
+```
+
+`--check` and `--diff` print only key names, never values, so their output is safe to log. A multi-line value is
+compared as a whole. Keys already in the deprecated section are not listed by `--check`; when only order,
+comments or repeated keys would change, it says so on stderr and still exits with `1`. Exit status: `0` no changes, `1` changes found, `2` error (a plain sync exits with `0` or `2`).
+
+```bash
+env-sync --check                  # in CI: fails if .env is out of sync with .env.example
+env-sync --diff /tmp/.env.decrypted
 ```
 
 One template can feed several env files, or each can have its own:
